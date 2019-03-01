@@ -31,15 +31,6 @@
   [O => O]
   [(S n-1) => n-1])
 
-(define-theorem and-example2
-  (∀ [n m : nat] (-> (And (== n 0) (== m 0))
-                     (== (plus n m) 0)))
-  (by-intros n m H)
-  (by-destruct H #:as [(Hn Hm)])
-  (by-rewrite Hn)
-  (by-rewrite Hm)
-  reflexivity)
-
 (define-theorem ex-falso-quodlibet
   (forall (P : Prop) (-> False P))
   (by-intros P contra)
@@ -74,4 +65,27 @@
        (== (plus 2 2) 4))
   by-split
   reflexivity
+  reflexivity)
+
+(define-theorem and-exercise
+  (∀ [n : nat] [m : nat]
+     (-> (== (plus n m) 0)
+         (And (== n 0)
+              (== m 0))))
+  (by-intros n m H)
+  (by-destruct n)
+  ;; subgoal 1
+  by-split
+  reflexivity
+  by-assumption
+  ;; subgoal 2
+  (by-discriminate H))
+
+(define-theorem and-example2
+  (∀ [n m : nat] (-> (And (== n 0) (== m 0))
+                     (== (plus n m) 0)))
+  (by-intros n m H)
+  (by-destruct H #:as [(Hn Hm)])
+  (by-rewrite Hn)
+  (by-rewrite Hm)
   reflexivity)
