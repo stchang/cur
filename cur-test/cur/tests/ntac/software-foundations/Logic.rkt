@@ -89,3 +89,17 @@
   (by-rewrite Hn)
   (by-rewrite Hm)
   reflexivity)
+
+(define-theorem proj1
+  (∀ [P : Prop] [Q : Prop]
+     (-> (And P Q) P))
+  (by-intros P Q HPQ)
+  (by-destruct HPQ #:as [(HP HQ)])
+  (by-apply HP))
+
+(define-theorem proj2
+  (∀ [P : Prop] [Q : Prop]
+     (-> (And P Q) Q))
+  (by-intros P Q HPQ)
+  (by-destruct HPQ #:as [(HP HQ)])
+  (by-apply HQ))
