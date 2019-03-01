@@ -31,9 +31,6 @@
   [O => O]
   [(S n-1) => n-1])
 
-;(define-theorem and-intro ; TODO: add split tactic
-;(define-theorem and-example1 
-
 (define-theorem and-example2
   (∀ [n m : nat] (-> (And (== n 0) (== m 0))
                      (== (plus n m) 0)))
@@ -60,4 +57,21 @@
 
 ;; TODO: add define-axiom
 
+;; ----------------
+;; Logical connectives
+;; ----------------
 
+(define-theorem and-intro
+  (∀ [A : Prop] [B : Prop]
+     (-> A B (And A B)))
+  (by-intros A B HA HB)
+  by-split
+  (by-apply HA)
+  (by-apply HB))
+
+(define-theorem and-example
+  (And (== (plus 3 4) 7)
+       (== (plus 2 2) 4))
+  by-split
+  reflexivity
+  reflexivity)
