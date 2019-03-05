@@ -147,3 +147,18 @@
   (by-rewrite Hm)
   (by-rewrite mult-n-O)
   reflexivity)
+
+(define-theorem or-intro
+  (∀ [P : Prop] [Q : Prop]
+     (-> P (Or P Q)))
+  (by-intros P Q H)
+  by-left
+  (by-apply H))
+
+(define-theorem zero-or-succ
+  (∀ [n : nat]
+     (Or (== n O) (== n (S (pred n)))))
+  (by-intro n)
+  (by-destruct n #:as [() (n-1)])
+  by-left reflexivity
+  by-right reflexivity)
