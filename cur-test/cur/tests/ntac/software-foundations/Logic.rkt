@@ -103,3 +103,18 @@
   (by-intros P Q HPQ)
   (by-destruct HPQ #:as [(HP HQ)])
   (by-apply HQ))
+
+(define-theorem and-assoc
+  (∀ [P : Prop] [Q : Prop] [R : Prop]
+     (-> (And P (And Q R))
+         (And (And P Q) R)))
+  (by-intros P Q R HPQR)
+  (by-destruct HPQR #:as [(HP HQR)])
+  (by-destruct HQR #:as [(HQ HR)])
+  by-split
+  by-split
+  (by-apply HP)
+  (by-apply HQ)
+  (by-apply HR))
+
+(:: And (-> Prop Prop Prop))
