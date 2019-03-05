@@ -27,6 +27,17 @@
   [O => m]
   [(S n-1) => (S (plus n-1 m))])
 
+(define/rec/match mult : nat [m : nat] -> nat
+  [O => O]
+  [(S n-1) => (plus m (mult n-1 m))])
+
+(define-theorem mult-n-O
+  (∀ [n : nat] (== (mult n O) O))
+  (by-intros n)
+  (by-induction n #:as [() (n-1 Hn)])
+  reflexivity
+  (by-apply Hn))
+
 (define/rec/match pred : nat -> nat
   [O => O]
   [(S n-1) => n-1])
@@ -51,6 +62,8 @@
 ;; ----------------
 ;; Logical connectives
 ;; ----------------
+
+;; === Conjuction
 
 (define-theorem and-intro
   (∀ [A : Prop] [B : Prop]
@@ -118,3 +131,19 @@
   (by-apply HR))
 
 (:: And (-> Prop Prop Prop))
+
+;; === Disjuction
+
+(define-theorem or-example
+  (∀ [n : nat] [m : nat]
+     (-> (Or (== n 0) (== m 0))
+         (== (mult n m) 0)))
+  (by-intros n m H)
+  (by-destruct H #:as [(Hn) (Hm)])
+  ;; subgoal 1
+  (by-rewrite Hn)
+  reflexivity
+  ;; subgoal 2
+  (by-rewrite Hm)
+  (by-rewrite mult-n-O)
+  reflexivity)
