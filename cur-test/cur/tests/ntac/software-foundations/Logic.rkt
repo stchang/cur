@@ -234,3 +234,36 @@
   reflexivity
   ;; subgoal 2 (b = false)
   reflexivity)
+
+;; ==== Truth
+
+(define-theorem true-is-true
+  True
+  (by-apply I))
+
+;; ==== Logical Equivalence
+
+(define-theorem or-distributes-over-and
+  (∀ [P : Prop] [Q : Prop] [R : Prop]
+     (iff (Or P (And Q R))
+          (And (Or P Q) (Or P R))))
+  (by-intros P Q R)
+  by-split
+  ;; subgoal 1: ->
+  (by-intros H)
+  (by-destruct H #:as [(HP) (HQR)])
+  ;; - given P
+  by-split by-left (by-apply HP) by-left (by-apply HP)
+  ;; - given Q∧R
+  (by-destruct HQR #:as [(HQ HR)])
+  by-split by-right (by-apply HQ) by-right (by-apply HR)
+  ;; subgoal 2: <-
+  (by-intros H)
+  (by-destruct H #:as [(HPQ HPR)])
+  (by-destruct HPQ #:as [(HP) (HQ)])
+  ;; - given P
+  by-left (by-apply HP)
+  ;; - given Q
+  (by-destruct HPR #:as [(HP) (HR)])
+  by-left (by-apply HP)
+  by-right by-split (by-apply HQ) (by-apply HR))
