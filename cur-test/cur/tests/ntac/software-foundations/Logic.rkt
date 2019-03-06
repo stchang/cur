@@ -42,11 +42,6 @@
   [O => O]
   [(S n-1) => n-1])
 
-(define-theorem ex-falso-quodlibet
-  (forall (P : Prop) (-> False P))
-  (by-intros P contra)
-  (by-destruct contra))
-
 (define-theorem function-equality1
   (== (plus 3) (plus (pred 4)))
   reflexivity)
@@ -162,3 +157,23 @@
   (by-destruct n #:as [() (n-1)])
   by-left reflexivity
   by-right reflexivity)
+
+;; === Falsehood and Negation
+
+(:: Not (-> Prop Prop))
+
+(define-theorem ex-falso-quodlibet
+  (∀ [P : Prop] (-> False P))
+  (by-intros P contra)
+  (by-destruct contra))
+
+(define-theorem not-implies-our-not
+  (∀ [P : Prop]
+     (-> (Not P) (∀ [Q : Prop] (-> P Q))))
+  (by-intros P HNP Q HP)
+  (by-assert contra False)
+  ;; proof of contra
+  (by-apply HNP)
+  by-assumption
+  ;; proof of rest
+  (by-apply ex-falso-quodlibet #:with Q contra))
