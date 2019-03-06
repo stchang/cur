@@ -177,3 +177,46 @@
   by-assumption
   ;; proof of rest
   (by-apply ex-falso-quodlibet #:with Q contra))
+
+(define-syntax /=
+  (syntax-parser
+    [(_ x y) #'(Not (== x y))]))
+
+(define-theorem zero-not-one
+  (/= 0 1)
+  (by-intros contra)
+  (by-discriminate contra))
+
+(define-theorem not-False
+  (Not False)
+  (by-intro H)
+  (by-destruct H))
+
+(define-theorem contradiction-implies-anything
+  (∀ [P : Prop] [Q : Prop] (-> (And P (Not P)) Q))
+  (by-intros P Q H)
+  (by-destruct H #:as [(HP HNP)])
+  (by-apply HNP #:in HP)
+  (by-destruct HP))
+
+(define-theorem double-neg
+  (∀ [P : Prop] (-> P (Not (Not P))))
+  (by-intros P H G)
+  (by-apply G)
+  (by-apply H))
+
+(define-theorem contrapositive
+  (∀ [P : Prop] [Q : Prop]
+     (-> (-> P Q) (-> (Not Q) (Not P))))
+  (by-intros P Q H HNQ HP)
+  (by-apply HNQ)
+  (by-apply H)
+  (by-apply HP))
+
+(define-theorem not-both-true-and-false
+  (∀ [P : Prop]
+     (Not (And P (Not P))))
+  (by-intros P H)
+  (by-destruct H #:as [(HP HNP)])
+  (by-apply HNP)
+  (by-apply HP))
