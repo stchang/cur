@@ -2,6 +2,7 @@
 (require cur/stdlib/sugar
          cur/stdlib/equality
          cur/stdlib/prop
+         cur/stdlib/bool
          cur/ntac/base
          cur/ntac/standard
          cur/ntac/rewrite
@@ -220,3 +221,16 @@
   (by-destruct H #:as [(HP HNP)])
   (by-apply HNP)
   (by-apply HP))
+
+(define-theorem not-true-is-false
+  (∀ [b : Bool]
+     (-> (/= b true)
+         (== b false)))
+  (by-intros b H)
+  (by-destruct b)
+  ;; subgoal 1 (b = true)
+  elim-False    ; TODO: rename to exfalso?
+  (by-apply H)
+  reflexivity
+  ;; subgoal 2 (b = false)
+  reflexivity)
