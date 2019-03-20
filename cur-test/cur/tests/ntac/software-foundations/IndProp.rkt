@@ -5,6 +5,7 @@
          cur/ntac/base
          cur/ntac/standard
          cur/ntac/rewrite
+         cur/ntac/inversion
          rackunit/turnstile
          "../rackunit-ntac.rkt")
 
@@ -156,6 +157,29 @@
 
 (check-type ev-minus2/destruct
   : (forall [n : nat] (-> (ev n) (ev (pred (pred n))))))
+
+(define-theorem ev-minus2/inversion*/working
+  (∀ [n : nat] (-> (ev n) (ev (pred (pred n)))))
+  (by-intros n E)
+  (by-inversion* E #:as [() (n1 E1)])
+  ;; subgoal 1
+  (by-rewrite Heqi)
+  (by-apply ev0)
+  ;; subgoal 2
+  (by-rewrite Heqi)
+  (by-apply E1))
+
+#;
+(define-theorem ev-minus2/inversion*/weird-bug
+  (∀ [n : nat] (-> (ev n) (ev (pred (pred n)))))
+  (by-intros n E)
+  (by-inversion* E) ; <- no "#:as"
+  ;; subgoal 1
+  (by-rewrite Heqi)
+  (by-apply ev0)
+  ;; subgoal 2
+  (by-rewrite Heqi)
+  by-assumption)
 
 ;; test more than 1 index
 (define-datatype le : [n : nat] [m : nat] -> Prop
