@@ -41,10 +41,10 @@
 (require 'check-output)
 
 (check-output
- "Axioms used by \"eq-nat-sym\":\n - eq-nat-sym : (Π (a : Nat) (b : Nat) (-> (== Nat a b) (== Nat b a)))\n"
+ "Axioms used by \"eq-nat-sym\":\n - eq-nat-sym : (Π (a : Nat) (b : Nat) (→ (== Nat a b) (== Nat b a)))\n"
  (print-assumptions eq-nat-sym))
 (check-output
- "Axioms used by \"eq-nat-sym1\":\n - eq-nat-sym : (Π (a : Nat) (b : Nat) (-> (== Nat a b) (== Nat b a)))\n"
+ "Axioms used by \"eq-nat-sym1\":\n - eq-nat-sym : (Π (a : Nat) (b : Nat) (→ (== Nat a b) (== Nat b a)))\n"
  (print-assumptions eq-nat-sym1))
 
 (check-output
