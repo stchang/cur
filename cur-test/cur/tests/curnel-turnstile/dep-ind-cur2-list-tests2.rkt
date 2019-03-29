@@ -33,9 +33,9 @@
 ;; 3) constructor args, split into
 ;;    - non-recursive
 ;;    - recursive
-(define-datatype List [A : (Type 0)] : -> (Type 0)
+(define-datatype List [A : (Type 0)] : (Type 0)
   [null : (List A)]
-  [cons : [x : A] [xs : (List A)] -> (List A)])
+  [cons [x : A] [xs : (List A)] : (List A)])
 
 (check-type null : (∀ [A : (Type 0)] (List A)))
 ;; TODO? null \neq null right now
@@ -134,9 +134,9 @@
  : Nat -> (S (Z)))
 
 ;; Vect: indexed "lists" parameterized over length --------------------
-(define-datatype Vect [A : (Type 0)] : [i : Nat] -> (Type 0)
+(define-datatype Vect [A : (Type 0)] : (-> [i : Nat] (Type 0))
   [nil : (Vect A Z)]
-  [cns : [k : Nat] [x99 : A] [xs99 : (Vect A k)] -> (Vect A (S k))])
+  [cns [k : Nat] [x : A] [xs : (Vect A k)] : (Vect A (S k))])
 
 (check-type nil : (Π [A : Type] (Vect A Z)))
 (check-type cns : (Π [A : Type] [k : Nat] (→ A (Vect A k) (Vect A (S k)))))

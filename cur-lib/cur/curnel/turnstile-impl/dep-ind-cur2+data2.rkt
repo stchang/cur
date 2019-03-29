@@ -1,7 +1,7 @@
 #lang turnstile/lang
 (require (except-in "dep-ind-cur2.rkt" λ #%app Π ~Π)
          (except-in "dep-ind-cur2+sugar.rkt" define)
-         (only-in "dep-ind-cur2+data.rkt" [define-datatype define-datatype1] pat->ctxt datacons)
+         (only-in "dep-ind-cur2+data.rkt" pat->ctxt datacons)
          turnstile/eval turnstile/typedefs turnstile/more-utils)
 
 ;; a 2nd dep-ind-cur2 library implementing define-datatype
@@ -11,60 +11,76 @@
 
 ; Π  λ ≻ ⊢ ≫ → ∧ (bidir ⇒ ⇐) τ⊑ ⇑
 
-(provide define-datatype define-datatype2 (for-syntax pat->ctxt))
+(provide define-datatype
+         (for-syntax pat->ctxt (rename-out [get-is get-idxs/unexp])))
 
 ;; define-data-constructor wraps define-type to enable currying of constructor,
 ;; differences with define-type*:
 ;; - expander name same as constructor name
 (define-syntax define-data-constructor
   (syntax-parser
-    [(_ name (~datum :) [A+i:id Atag:id τ] ... (~datum ->) τ-out . rst)
+    [;; τ and τ-out have "unexpanded" shape, ie curried with single-applications
+     ;; TODO: should they be unexpanded before or after passing to define-data-constructor?
+     (_ name [A:id Atag:id τA] ... (~datum :) [i+x (~datum :) τ] ... (~datum ->) τ-out . rst)
      #:with name/internal (fresh #'name)
      #:with name/internal-expander (mk-~ #'name/internal)
      #:with name-expander #'name
-     #:with (p ...) (generate-temporaries #'(A+i ...))
+     #:with (p ...) (generate-temporaries #'(A ... i+x ...))
       #'(begin-
-         (define-type name/internal : [A+i Atag τ] ... -> τ-out . rst)
+         (define-type name/internal : [A Atag τA] ... [i+x : τ] ... -> τ-out . rst)
          (define-syntax name
            (datacons
             (λ (stx)
               ((make-variable-like-transformer
                 (quasisyntax/loc stx
-                  (λ [A+i : τ] ...
-                     #,(syntax/loc stx (name/internal A+i ...)))))
+                  (λ [A Atag τA] ... [i+x : τ] ...
+                     #,(syntax/loc stx (name/internal A ... i+x ...)))))
                stx))
             #;(make-variable-like-transformer
                #'(λ [A+i : τ] ... (name/internal A+i ...)))
             (λ (pat t) ; pat should have type t (unexpanded type)
               (syntax-parse pat
+                #;[debug
+                   #:do[(printf "pat->ctxt: ~a : ~a (expected ~a)\n"
+                                (stx->datum #'debug) (stx->datum t) (stx->datum #'τ-out))]
+                   #:when #f #'debug]
                 [:id ; nullary constructor, no extra binders
                  #:fail-unless (if (id? t)
-                                   (free-id=? t #'τ-out)
-                                   (free-id=? (stx-car t) (stx-car #'τ-out)))
+                                   (typecheck? ((current-type-eval) t)
+                                               ((current-type-eval) #'τ-out))
+                                   (free-id=? (stx-car t) (get-ty-name #'τ-out)))
                  (format "expected pattern for type ~a, given pattern for ~a: ~a\n"
-                         (type->str t) (type->str #'τ-out) (syntax->datum pat))
+                         ((current-resugar) t) ((current-resugar) #'τ-out) (syntax->datum pat))
                  null]
                 [(_ p ...)
                  #:fail-unless (if (id? t)
-                                   (free-id=? t #'τ-out)
-                                   (free-id=? (stx-car t) (stx-car #'τ-out)))
+                                   (typecheck? ((current-type-eval) t)
+                                               ((current-type-eval) #'τ-out))
+                                   (free-id=? (stx-car t) (get-ty-name #'τ-out)))
                  (format "expected pattern for type ~a, given pattern for ~a: ~a\n"
-                         (type->str t) (type->str #'τ-out) (syntax->datum pat))
-                 (stx-appendmap
-                  pat->ctxt
-                  #'(p ...)
-                  ;; if pat for a param is omitted, infer from t
-                  ;; TODO: is this right?
-                  (if (id? t) #'(τ ...)
-                      (let*-values ([(params) (stx-cdr t)] ; TODO: is this right, doesnt consider indices
-                                    [(missingAs missingparams)
-                                     (for/lists (l1 l2)
-                                                ([param (in-stx-list params)]
-                                                 [A (stx-take #'(A+i ...) (stx-length params))]
-                                                 [pp (stx-take #'(p ...) (stx-length params))]
-                                                 #:when (equal? (stx->datum pp) '_))
-                                       (values A param))])
-                        (substs missingparams missingAs #'(τ ...)))))]))))
+                         ((current-resugar) t) ((current-resugar) #'τ-out) (syntax->datum pat))
+                 (let L ([res null]
+                         ;; drop param pats, for now
+                         ;; to include them, need to make them equiv to params in t?
+                         [ps (stx-drop #'(p ...) (stx-length #'(A ...)))]
+                         [xs (stx->list #'(i+x ...))]
+                         [τs (stx->list
+                              (if (stx-null? #'(A ...))
+                                  #'(τ ...)
+                                  (substs (if (id? t) #'() (stx-take (stx-cdr t) (stx-length #'(A ...))))
+                                      #'(A ...)
+                                      #'(τ ...))))])
+                   (if (stx-null? ps)
+                       res
+                       (let ([x+tys (pat->ctxt (car ps) (car τs))])
+                         (L (append res x+tys)
+                            (cdr ps)
+                            (cdr xs)
+                            (if (and (not (null? x+tys))
+                                     (id? (car ps))
+                                     (free-id=? (car ps) (caar x+tys)))
+                                (map (λ (t) (subst (car ps) (car xs) t)) (cdr τs))
+                                (cdr τs))))))]))))
          (begin-for-syntax
            (define-syntax name-expander
              (make-rename-transformer #'name/internal-expander))))]))
@@ -95,24 +111,24 @@
   ;; x+τss = (([x τ] ...) ...)
   ;; returns subset of each (x ...) that is recursive, ie τ = (TY . args)
   ;; along with the indices needed by each recursive x
-  ;; - ASSUME: the needed indices are first `num-is` arguments in x+τss
   ;; - ASSUME: the recursive arg has type (TY . args) where TY is unexpanded
-  (define (find-recur/is TY num-As num-is x+τss)
+  ;;   series of curried mono-apps, where indices are last num-is args to TY
+  (define (find-recur/is TY num-is x+τss)
     (stx-map
      (λ (x+τs)
        (define xs (stx-map stx-car x+τs))
        (stx-filtermap
         (syntax-parser
           [(x t:id) (and (free-id=? #'t TY) (list #'x))] ; num-is should be = 0
-          [(x (t:id . rst)) (and (free-id=? #'t TY) (cons #'x (stx-drop #'rst num-As)))]
-          [(x t) #:when (free-id=? (get-ty-name #'t (+ num-As num-is)) TY)
+          [(x t) #:when (free-id=? (get-ty-name #'t #;(+ num-As num-is)) TY)
                  (cons #'x (get-is #'t num-is))]
           [_ #f])
         x+τs))
      x+τss))
-  ;; ty is unexpanded, series of curried applications of type constructor
-  (define (get-ty-name ty numA+is)
-    (if (zero? numA+is) ty (get-ty-name (stx-car ty) (sub1 numA+is))))
+  ;; ty is unexpanded, series of curried mono-applications of type constructor
+  (define (get-ty-name ty)
+    (if (id? ty) ty (get-ty-name (stx-car ty))))
+  ;; ty is unexpanded, series of curried mono-applications of type constructor
   (define (get-is ty num-is)
     (if (zero? num-is) null (append (get-is (stx-car ty) (sub1 num-is)) (stx-cdr ty))))
   )
@@ -135,7 +151,7 @@
       (expand/df #'e/tmp)]))
 
 ;; experimental define-datatype : matches coq Inductive defs
-(define-typed-syntax define-datatype2
+(define-typed-syntax define-datatype
   [(_ TY:id [A_:id (~datum :) τA_] ... ; params: τA_ may reference preceding A
             (~datum :) τTY ; possibly declares indices, may reference params
             ;; constructors, full type of each C is (Π [A_ : τA_] ... x+τx ... τC)
@@ -166,8 +182,10 @@
    ;; ie, they are not fresh ids
    ;; - each xrec is accompanied with irec ...,
    ;;   which are the indices in i+x ... needed by xrec
+   #:do[(define num-params (stx-length #'(A ...)))
+        (define num-idxs (stx-length #'(i ...)))]
    #:with (((xrec irec ...) ...) ...)
-          (find-recur/is #'TY (stx-length #'(A ...)) (stx-length #'(i ...)) #'(([i+x τin] ...) ...))
+          (find-recur/is #'TY num-idxs #'(([i+x τin] ...) ...))
 
    ;; below here is same as define-datatype ------------------------------
           
@@ -176,7 +194,6 @@
    #:with (i* ...) (generate-temporaries #'(i ...))
    ; dup (A ...) C times, for ellipses matching
    #:with ((AxC ...) ...) (stx-map (lambda _ #'(A ...)) #'(C ...))
-;   #:with ((AtagxC ...) ...) (stx-map (lambda _ #'(Atag ...)) #'(C ...))
    #:with ((τAxC ...) ...) (stx-map (λ _ #'(τA ...)) #'(C ...))
    #:with (m ...) (generate-temporaries #'(C ...))
    #:with (m- ...) (generate-temporaries #'(C ...))
@@ -184,20 +201,22 @@
    #:with elim-TY (format-id #'TY "elim-~a" #'TY)
    #:with eval-TY (format-id #'TY "match-~a" #'TY)
    #:with (τm ...) (generate-temporaries #'(m ...))
-   #:with (C-expander ...) (stx-map mk-~ #'(C ...))
+   #:with (C-pat ...) (stx-map
+                       (λ (C xs)
+                         (if (and (zero? num-params) (stx-null? xs))
+                             C ; must not be (C) pattern; unlike #%app, (C) \neq C due to id macro behavior
+                             #`(#,C A ... . #,xs)))
+                       #'(C ...)
+                       #'((i+x ...) ...))
 
-   ;; ASSUMING: τoutA has shape (TY A ... τouti ...), or id
+   ;; ASSUMING: τout is unexpanded curried single-apps
    ;; - this is the same "patvar trick" as re-using A below
    ;; - it makes sure that the method output types properly reference the right i
-   #:with ((τouti ...) ...) (stx-map
-                             (λ (ts)
-                               (or (and (stx-pair? ts) (stx-drop ts (add1 (stx-length #'(A ...)))))
-                                   #'()))
-                             #'(τout ...))
+   #:with ((τouti ...) ...) (stx-map (λ (t) (get-is t num-idxs)) #'(τout ...))
 
    ;; these are all the generated definitions that implement the define-datatype
    #:with OUTPUT-DEFS
-    #'(begin-
+    #`(begin-
         ;; define the type
         (define-type* TY : [A : τA] ... [i : τi] ... -> τ
           #:extra elim-TY
@@ -206,7 +225,7 @@
                   (C ([i+x τin] ... τout) ((xrec irec ...) ...)) ...)
 
         ;; define the data constructors
-        (define-data-constructor C : [AxC : τAxC] ... [i+x : τin] ... -> τout) ...
+        (define-data-constructor C [AxC : τAxC] ... : [i+x : τin] ... -> τout) ...
 
         ;; define eliminator-form elim-TY
         ;; v = target
@@ -228,29 +247,52 @@
           ;; target, infers A ...
           ;; this means every patvar in define-datatype input pattern that references A
           ;; is now instantiated with inferred A
+          ;; - must unexpand all types that reference A ...
           ;; (see also comments below)
-          [⊢ v ≫ v- ⇒ (TY-patexpand A ... i* ...)]
+          #,(if (zero? (+ num-params num-idxs))
+                #'[⊢ v ≫ v- ⇐ TY]
+                #'[⊢ v ≫ v- ⇒ (TY-patexpand A ... i* ...)])
 
           ;; τi instantiated with A ... from v-
-          [⊢ P ≫ P- ⇐ (Π [i : τi] ...
-                         (→ (TY #,@(stx-map unexpand #'(A ... i ...))) TypeTop))]
+          ;; nb: without this conditional, sf/Poly.rkt fails with mysterious tyerr
+          #,(if (zero? (+ num-params num-idxs))
+                #'[⊢ P ≫ P- ⇐ (→ TY TypeTop)]
+                #'[⊢ P ≫ P- ⇐ (Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
+                                 (→ (TY #,@(stx-map unexpand #'(A ...)) i ...) TypeTop))])
 
           ;; each m is curried fn consuming 3 (possibly empty) sets of args:
           ;; 1,2) i+x  - indices of the tycon, and args of each constructor `C`
           ;;             the indices may not be included, when not needed by the xs
           ;; 3) IHs - for each xrec ... (which are a subset of i+x ...)
           #:with (τm ...)
-                 #`( (Π [i+x : τin] ... ; constructor args ; ASSUME: i+x includes indices
-                        (→ (P- irec ... xrec) ... ; IHs
-                           (P- #,@(stx-map unexpand #'(τouti ...))
-                               (C #,@(stx-map unexpand #'(AxC ... i+x ...))))))
-                     ...)
+          ;; #,(if (zero? (+ num-idxs num-params))
+          ;;       #'#'((Π [i+x : τin] ...
+          ;;             (→ (P- xrec) ... (P- (C i+x ...)))) ...)
+          ;;       #'#`( (Π [i+x : τin] ... ; constructor args ; ASSUME: i+x includes indices
+          ;;                (→ (P- irec ... xrec) ... ; IHs
+          ;;                   ;; need to unexpand τouti again bc it may reference (new) A ...
+          ;;                  (P- #,@(stx-map unexpand #'(τouti ...))
+          ;;                      (C #,@(stx-map unexpand #'(AxC ...)) i+x ...))))
+          ;;             ...))
+          ;; TODO: unexpand τin ...? (may reference A ...?)
+          #`( (Π [i+x : τin] ... ; constructor args ; ASSUME: i+x includes indices
+                 (→ (P- irec ... xrec) ... ; IHs
+                    ;; need to unexpand τouti again bc it may reference (new) A ...
+                    (P- #,@(stx-map unexpand #'(τouti ...))
+                        (C #,@(stx-map unexpand #'(AxC ...)) i+x ...))))
+              ...)
+          
           [⊢ m ≫ m- ⇐ τm] ...
+
+          ;; #:with out-ty #,(if (zero? (+ num-params num-idxs))
+          ;;                     #'#'(P- v-)
+          ;;                     #'#`(P- #,@(stx-map unexpand #'(i* ...)) v-))
+          #:with out-ty #`(P- #,@(stx-map unexpand #'(i* ...)) v-)
           -----------
-          [⊢ (eval-TY v- P- m- ...) ⇒ (P- #,@(stx-map unexpand #'(i* ...)) v-)]
+          [⊢ (eval-TY v- P- m- ...) ⇒ out-ty]
 
           #:where eval-TY #:display-as elim-TY ; elim reduction rule
-          [(#%plain-app (C AxC ... i+x ...) P m ...) ; elim redex
+          [(#%plain-app C-pat P m ...) ; elim redex
            ~> (app/eval m i+x ... (eval-TY xrec P m ...) ...)] ...)
         )
 ;    #:do[(pretty-print (stx->datum #'OUTPUT-DEFS))]
@@ -274,7 +316,7 @@
 ;; - workaround:
 ;;   - dont expand, until expander is fixed
 ;;   - but manually check for captured binders (TODO)
-(define-typed-syntax define-datatype
+#;(define-typed-syntax define-datatype
   ;; simple datatypes, eg Nat -------------------------------------------------
   ;; - ie, `TY` is an id with no params or indices
   [(_ TY:id (~datum :) τ [C:id (~datum :) τC] ...) ≫

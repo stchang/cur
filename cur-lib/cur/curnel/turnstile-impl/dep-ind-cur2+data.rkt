@@ -13,7 +13,7 @@
 (begin-for-syntax
   (struct datacons (proc pat->ctxt)
     #:property prop:procedure (struct-field-index proc))
-  ;; pattern pat has type ty
+  ;; pattern `pat` has (unexpanded) type `ty`
   (define (pat->ctxt pat ty)
     ;; (printf "converting pat: ~a\n" (stx->datum pat))
     ;; (printf "with type: ~a\n" (stx->datum ty))
