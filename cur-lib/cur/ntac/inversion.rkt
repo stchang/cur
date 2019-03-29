@@ -120,11 +120,13 @@
                               #,@==-pfs))))]
 
              ; Contradiction; generate a proof instead of creating a hole
-             [(impossible quodlibet)
-              (values (make-ntt-exact goal (quodlibet (unexpand goal)))
+             [(impossible false-pf)
+              (values (make-ntt-exact #'False false-pf)
                       (λ (pf)
                         #`(λ x ... xrec ... ==-id ...
-                             #,pf)))])])))
+                             (new-elim
+                              #,pf
+                              (λ _ #,(unexpand goal))))))])])))
 
     (make-ntt-apply
      goal

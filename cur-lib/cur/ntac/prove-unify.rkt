@@ -7,7 +7,7 @@
   impossible))
 
 (require
- (only-in "../stdlib/prop.rkt" True I)
+ (only-in "../stdlib/prop.rkt" True False I)
  "../stdlib/sugar.rkt"
  "../stdlib/equality.rkt"
  "../stdlib/nat.rkt"
@@ -28,9 +28,9 @@
   ; Each term proves the corresponding equality type
   (struct derived [==s proofs])
 
-  ;; quodlibet : type-stx -> term-stx
-  ; 'quodlibet' takes a goal type and returns a proof of that type
-  (struct impossible [quodlibet])
+  ;; contradiction : term-stx
+  ; 'contradiction' has type False.
+  (struct impossible [contradiction])
 
   ;; term-stx term-stx term-stx -> (or/c derived? impossible?)
   ; Either returns (derived ..) containing equality proofs for subexpressions, or
@@ -56,8 +56,8 @@
                      #,(unexpand top-R)
                      #,top-pf)))
 
-      (define (abort-impossible mk-c)
-        (abort (impossible mk-c)))
+      (define (abort/contradiction false-pf)
+        (abort (impossible false-pf)))
 
       (define ==s    '())
       (define proofs '())
@@ -81,22 +81,21 @@
            ; === If constructors differ, build a contradiction
            (unless (and (free-identifier=? #'CL #'CR)
                         (stx-length=? #'(L* ...) #'(R* ...)))
-             (abort-impossible
-              (λ (goal)
-                (define (mk-match-clause Cinfo)
-                  (syntax-parse Cinfo
-                    [[C ([x _] ... _) _]
-                     #`[(C x ...)
-                        #,(if (stx-datum-equal? #'C #'CL)
-                            #'True
-                            goal)]]))
-                #`(elim-==
-                   #,(mk-proof TY term)
-                   (λ #,contra-id _
-                      (match #,contra-id
-                        #:return Type
-                        #,@(stx-map mk-match-clause #'(Cinfo ...))))
-                   I))))
+             (define (mk-match-clause Cinfo)
+               (syntax-parse Cinfo
+                 [[C ([x _] ... _) _]
+                  #`[(C x ...)
+                     #,(if (stx-datum-equal? #'C #'CL)
+                         #'True
+                         #'False)]]))
+             (abort/contradiction
+              #`(elim-==
+                 #,(mk-proof TY term)
+                 (λ #,contra-id _
+                    (match #,contra-id
+                      #:return Type
+                      #,@(stx-map mk-match-clause #'(Cinfo ...))))
+                 I)))
 
            ; === Constructors match; recur into subexpressions
            (for ([i (in-naturals)]
