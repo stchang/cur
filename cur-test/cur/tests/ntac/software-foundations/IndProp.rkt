@@ -161,7 +161,7 @@
 (define-theorem ev-minus2/inversion*/working
   (∀ [n : nat] (-> (ev n) (ev (pred (pred n)))))
   (by-intros n E)
-  (by-inversion* E #:as [() (n1 E1)])
+  (by-inversion* E #:as [(Heqi) (n1 E1 Heqi)])
   ;; subgoal 1
   (by-rewrite Heqi)
   (by-apply ev0)
@@ -169,17 +169,27 @@
   (by-rewrite Heqi)
   (by-apply E1))
 
-#;
-(define-theorem ev-minus2/inversion*/weird-bug
+(define-theorem ev-minus2/inversion*/assumption
   (∀ [n : nat] (-> (ev n) (ev (pred (pred n)))))
   (by-intros n E)
   (by-inversion* E) ; <- no "#:as"
   ;; subgoal 1
-  (by-rewrite Heqi)
+  (by-rewrite Heq84)
   (by-apply ev0)
   ;; subgoal 2
-  (by-rewrite Heqi)
-  by-assumption)
+  (by-rewrite Heq90)
+  by-assumption       ; this works now
+  )
+
+(define-theorem not-ev-3/inversion* (Not (ev 3))
+  (by-intros E)
+  (by-inversion* E #:as [() (n1 E1 Heq)])
+  ; TODO: automatically rewrite Heq into context
+  ; or at least, support (by-rewrite ... #:in H)
+  (by-assert H (ev 1))
+  (by-rewrite Heq)
+  (by-apply E1)
+  (by-inversion* H))
 
 ;; test more than 1 index
 (define-datatype le : [n : nat] [m : nat] -> Prop

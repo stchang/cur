@@ -10,6 +10,7 @@
  "../stdlib/equality.rkt"
  "base.rkt"
  "standard.rkt"
+ "prove-unify.rkt"
   (for-syntax "ctx.rkt" "utils.rkt"
               (only-in macrotypes/typecheck-core subst substs)
               macrotypes/stx-utils
@@ -29,8 +30,8 @@
 
   (define ((inversion* name [new-xss_ #f]) ctxt pt)
     (match-define (ntt-hole _ goal) pt)
-
-    (define name-ty (ctx-lookup ctxt name))
+    (define name-ty (or (ctx-lookup ctxt name) ; thm in ctx
+                        (typeof (expand/df name))))
 
     ;; get info about the datatype and its constructors
     ;; A = params
@@ -54,62 +55,76 @@
 
     (define new-xss
       (or new-xss_
-          (stx-map (λ (_) #f) #'(Cinfo ...))))
+          (stx-map (λ (_) null) #'(Cinfo ...))))
 
-    ;; infer from name-ty: params (Aval ...) and indices (ival ...)
-
+    ; === Extract rovided params (Aval ...) and indices (ival ...)
     (define/syntax-parse ((Aval ...) (ival ...))
       (syntax-parse name-ty
         [((~literal #%plain-app) _ . name-ty-args)
          (stx-split-at #'name-ty-args num-params)]))
 
-    ;; generate names for the equality hypothesis we will introduce
-
-    (define/syntax-parse (eq-name ...)
-      ((freshens name) (stx-map (λ (x) (format-id x "Heq~a" x))
-                                #'(i ...))))
-
-    ;; generate subgoals for each data constructor case
-
+    ; === Generate subgoals for each data constructor case
+    ;; subgoals : (listof ntt)
+    ;; mk-elim-methods : (listof (or/c #f (-> term term)))
     (define-values [subgoals mk-elim-methods]
       (for/lists (subgoals mk-elim-methods)
                  ([Cinfo (in-stx-list #'(Cinfo ...))]
                   [new-xs (in-stx-list new-xss)])
+
+        (define (next-id hint)
+          (if (stx-null? new-xs)
+            ((freshen name) (generate-temporary hint))
+            (begin0 (stx-car new-xs) (set! new-xs (stx-cdr new-xs)))))
+
         (syntax-parse Cinfo
           [[C ([x_ τx_] ... τout_)
               ([xrec_ . _] ...)]
-           #:with (new-x ...) (or new-xs ((freshens name) #'(x_ ...)))
+           #:with (x ...) (stx-map next-id #'(x_ ...))
            #:with (xrec ...) ((freshens name) #'(xrec_ ...))
-           #:with (τx ... τout) (substs #'(Aval ... new-x ...)
+           #:with (τx ... τout) (substs #'(Aval ... x ...)
                                         #'(A    ... x_ ...)
                                         #'(τx_ ... τout_))
 
-           ;; (eq ...) = equality types for the indices of this particular constructor
-           #:with (iout ...) (get-idxs #'τout)
-           #:with (eq ...) #'[(== τi ival iout) ...]
+           #:do [(define ctxt+xs (ctx-adds ctxt #'(x ...) #'(τx ...)
+                                           #:do normalize))]
 
-           #:do [(define (update-ctxt/xs ctxt)
-                   (for/fold ([ctxt ctxt])
-                             ([new-x (in-stx-list #'(new-x ...))]
-                              [τx    (in-stx-list #'(τx ...))])
-                     (ctx-add ctxt new-x (normalize τx ctxt))))
-                 ; NOTE: xrec purposely not put in context; the user doesn't need it.
-                 ; maybe should've used dependent matching instead of elim?
-                 (define (update-ctxt/eqs ctxt)
-                   (ctx-adds ctxt
-                             #'(eq-name ...)
-                             (stx-map (normalize/ctxt ctxt) #'(eq ...))))
-                 (define update-ctxt
-                   (compose update-ctxt/eqs
-                            update-ctxt/xs))]
+           #:with (iout ...) (map (normalize/ctxt ctxt+xs) (get-idxs #'τout))
+           #:with (==-id ...) (stx-map (λ (_) (generate-temporary 'eq)) #'(i ...))
+           #:with (==-ty ...) #'[(== ival iout) ...]
 
-           (values
-            (make-ntt-context ; subgoal
-             update-ctxt
-             (make-ntt-hole goal))
-            (λ (pf)
-              #`(λ new-x ... xrec ... eq-name ...
-                   #,pf)))])))
+           #;
+           #:do #;[(printf "** ~s\n** ~s\n** ~s\n------------\n"
+                         (map syntax->datum (attribute ival))
+                         (map syntax->datum (attribute iout))
+                         (map syntax->datum (attribute ==-id)))]
+
+           ; Unify provided indices with constructor specific indices, to
+           (match (prove-unifys (attribute ival)
+                                (attribute iout)
+                                (attribute ==-id))
+             ; Add derived equalities to context and make subgoal
+             [(derived ==s ==-pfs)
+              (define derived-==-ids   (map (λ (_) (next-id 'Heq)) ==s))
+              (define derived-bindings (map mk-bind-stx derived-==-ids ==s))
+
+              (define (update-ctxt ctxt)
+                (for/fold ([ctxt ctxt])
+                          ([x (in-list (append (attribute x)  derived-==-ids))]
+                           [τ (in-list (append (attribute τx) ==s))])
+                  (ctx-add ctxt x (normalize τ ctxt))))
+
+              (values (make-ntt-context update-ctxt (make-ntt-hole goal))
+                      (λ (pf)
+                        #`(λ x ... xrec ... ==-id ...
+                             ((λ #,@derived-bindings #,pf)
+                              #,@==-pfs))))]
+
+             ; Contradiction; generate a proof instead of creating a hole
+             [(impossible quodlibet)
+              (values (make-ntt-exact goal (quodlibet (unexpand goal)))
+                      (λ (pf)
+                        #`(λ x ... xrec ... ==-id ...
+                             #,pf)))])])))
 
     (make-ntt-apply
      goal
@@ -120,15 +135,13 @@
            ; target
            #,name
            ; motive
-           #,(with-syntax ([(i* ...) (generate-temporaries #'(ival ...))])
-               (with-syntax ([(eq ...) (stx-map unexpand #'[(== τi ival i*) ...])])
+           #,(with-syntax ([(i* ...) (generate-temporaries #'(i ...))])
+               (with-syntax ([(==-ty ...) (stx-map unexpand #'((== ival i*) ...))])
                  #`(λ i* ... #,name
-                      (-> eq ...
-                          #,goal))))
+                      (-> ==-ty ... #,(unexpand goal)))))
            ; methods
            . #,(map (λ (mk pf) (mk pf)) mk-elim-methods pfs))
           ; arguments (refl proofs)
-          (refl τi ival)
-          ...)))))
+          #,@(stx-map unexpand #'((refl τi ival) ...)))))))
 
   )
