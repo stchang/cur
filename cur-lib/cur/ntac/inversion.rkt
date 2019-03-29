@@ -41,7 +41,7 @@
     ;; irec = indices to recursive args
     (define/syntax-parse
       (elim-TY ([A τA] ...)
-               ([i τi] ...)
+               ([i τi_] ...)
                Cinfo ...)
       (get-match-info name-ty))
 
@@ -62,6 +62,9 @@
       (syntax-parse name-ty
         [((~literal #%plain-app) _ . name-ty-args)
          (stx-split-at #'name-ty-args num-params)]))
+
+    (define/syntax-parse (τi ...)
+      (substs #'(Aval ...) #'(A ...) #'(τi_ ...)))
 
     ; === Generate subgoals for each data constructor case
     ;; subgoals : (listof ntt)
@@ -98,7 +101,7 @@
                          (map syntax->datum (attribute iout))
                          (map syntax->datum (attribute ==-id)))]
 
-           ; Unify provided indices with constructor specific indices, to
+           ; Unify the provided indices (ival) with the constructor's indices (iout)
            (match (prove-unifys (attribute ival)
                                 (attribute iout)
                                 (attribute ==-id))

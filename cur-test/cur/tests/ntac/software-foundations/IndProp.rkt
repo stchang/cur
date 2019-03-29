@@ -181,6 +181,10 @@
   by-assumption       ; this works now
   )
 
+(define-theorem true-isnt-false/inversion* (Not (== true false))
+ (by-intro H)
+ (by-inversion* H))
+
 (define-theorem not-ev-3/inversion* (Not (ev 3))
   (by-intros E)
   (by-inversion* E #:as [() (n1 E1 Heq)])
