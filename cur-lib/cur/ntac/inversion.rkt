@@ -94,7 +94,7 @@
 
            #:with (iout ...) (map (normalize/ctxt ctxt+xs) (get-idxs #'τout))
            #:with (==-id ...) (stx-map (λ (_) (generate-temporary 'eq)) #'(i ...))
-           #:with (==-ty ...) #'[(== ival iout) ...]
+           #:with (==-ty ...) #'[(== iout ival) ...]
 
            #;
            #:do #;[(printf "** ~s\n** ~s\n** ~s\n------------\n"
@@ -103,8 +103,8 @@
                          (map syntax->datum (attribute ==-id)))]
 
            ; Unify the provided indices (ival) with the constructor's indices (iout)
-           (match (prove-unifys (attribute ival)
-                                (attribute iout)
+           (match (prove-unifys (attribute iout)
+                                (attribute ival)
                                 (attribute ==-id))
              ; Add derived equalities to context and make subgoal
              [(derived ==s ==-pfs)
@@ -142,7 +142,7 @@
            #,name
            ; motive
            #,(with-syntax ([(i* ...) (generate-temporaries #'(i ...))])
-               (with-syntax ([(==-ty ...) (stx-map unexpand #'((== ival i*) ...))])
+               (with-syntax ([(==-ty ...) (stx-map unexpand #'((== i* ival) ...))])
                  #`(λ i* ... #,name
                       (-> ==-ty ... #,(unexpand goal)))))
            ; methods
