@@ -115,11 +115,11 @@
 
 ;; test that elim matches on constructor name, and not arity
 (define-datatype Test : Type
-  [AA : (→ Test)]
-  [BB : (→ Test)])
+  [A : (→ Test)]
+  [B : (→ Test)])
 
 (check-type
- (elim-Test (AA)
+ (elim-Test (A)
             (λ [x : Test] Nat)
             Z
             (S (Z)))
@@ -127,7 +127,7 @@
 
 ;; should match second branch, but just arity-checking would match 1st
 (check-type
- (elim-Test (BB)
+ (elim-Test (B)
             (λ [x : Test] Nat)
             Z
             (S (Z)))

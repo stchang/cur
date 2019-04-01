@@ -30,9 +30,7 @@
 (provide (all-from-out turnstile/base turnstile/eval turnstile/typedefs))
 
 (require "dep-ind-cur2+data2.rkt")
-(require (only-in "dep-ind-cur2+data.rkt" datacons))
-(provide (all-from-out "dep-ind-cur2+data.rkt")
-         (all-from-out "dep-ind-cur2+data2.rkt"))
+(provide (all-from-out "dep-ind-cur2+data2.rkt"))
 
 ; Π  λ ≻ ⊢ ≫ → ∧ (bidir ⇒ ⇐) τ⊑ ⇑
 
