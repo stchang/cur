@@ -26,7 +26,8 @@
   (define-syntax (by-inversion* syn)
     (syntax-parse syn
       [(_ H) #'(fill (inversion* #'H))]
-      [(_ H #:as namess) #'(fill (inversion* #'H #'namess))]))
+      [(_ H #:as name:id ...) #'(fill (inversion* #'H #'[(name ...)]))]
+      [(_ H #:as (names ...)) #'(fill (inversion* #'H #'(names ...)))]))
 
   (define ((inversion* name [new-xss_ #f]) ctxt pt)
     (match-define (ntt-hole _ goal) pt)
