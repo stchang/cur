@@ -5,7 +5,8 @@
          cur/stdlib/prop
          cur/ntac/base
          cur/ntac/standard
-         cur/ntac/rewrite
+         (except-in cur/ntac/rewrite by-inversion)
+         cur/ntac/inversion
          rackunit/turnstile
          "rackunit-ntac.rkt")
 
@@ -111,8 +112,7 @@
 (define-theorem one-neq-zero
   (-> (== Nat (s 0) 0) False)
   (by-intro H)
-  (by-inversion H)
-  by-assumption)
+  (by-inversion H))
 
 (check-type one-neq-zero : (-> (== Nat (s 0) 0) False))
 
@@ -188,16 +188,14 @@
 (define-theorem zero-neq-one
   (-> (== Nat 0 (s 0)) False)
   (by-intro H)
-  (by-inversion H)
-  by-assumption)
+  (by-inversion H))
 
 (check-type zero-neq-one : (-> (== Nat 0 (s 0)) False))
 
 (define-theorem zero-neq-two
   (-> (== Nat 0 2) False)
   (by-intro H)
-  (by-inversion H)
-  by-assumption)
+  (by-inversion H))
 
 (check-type zero-neq-two : (-> (== Nat 0 2) False))
 
@@ -206,10 +204,20 @@
  (-> (== Nat (s 0) 0)
      (== Nat (s (s 0)) (s (s (s 0)))))
  (by-intro H)
- (by-inversion H)
  elim-False
- by-assumption)
+ (by-inversion H))
 
 (check-type two-neq-three
+ : (-> (== Nat (s 0) 0)
+     (== Nat (s (s 0)) (s (s (s 0))))))
+
+;; new: eliminates cases, even if goal isn't False
+(define-theorem two-neq-four
+ (-> (== Nat (s 0) 0)
+     (== Nat (s (s 0)) (s (s (s 0)))))
+  (by-intro H)
+  (by-inversion H))
+
+(check-type two-neq-four
  : (-> (== Nat (s 0) 0)
      (== Nat (s (s 0)) (s (s (s 0))))))
