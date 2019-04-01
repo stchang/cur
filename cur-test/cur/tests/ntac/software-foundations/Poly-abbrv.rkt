@@ -3,7 +3,8 @@
          cur/stdlib/equality
          cur/ntac/base
          cur/ntac/standard
-         cur/ntac/rewrite
+         (except-in cur/ntac/rewrite by-inversion)
+         cur/ntac/inversion
          "../rackunit-ntac.rkt"
          rackunit/turnstile)
 
@@ -65,12 +66,10 @@
   (by-destruct n)
   ;; destruct 2a: z -----
   (by-inversion H45)
-  elim-False
-  (by-assumption)
   ;; destruct 2b: (s n-1) -----
   (by-apply IH43)
-  (by-inversion H45) ; adds H49
-  (by-rewrite H49)
+  (by-inversion H45) ; adds Heq52
+  (by-rewrite Heq52)
   reflexivity)
 
 (check-type length-app-sym/abbrv
