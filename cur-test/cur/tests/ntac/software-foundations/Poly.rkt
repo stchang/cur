@@ -3,7 +3,8 @@
          cur/stdlib/equality
          cur/ntac/base
          cur/ntac/standard
-         cur/ntac/rewrite
+         (except-in cur/ntac/rewrite by-inversion)
+         cur/ntac/inversion
          "Basics.rkt"
          rackunit/turnstile
          "../rackunit-ntac.rkt")
@@ -130,8 +131,6 @@
   (by-destruct n #:as [() (n-1)])
   ;; destruct 2a: z -----
   (by-inversion H)
-  elim-False
-  (by-assumption)
   ;; destruct 2b: (s n-1) -----
   (by-apply IH)
   (by-inversion H #:as H0)
@@ -204,8 +203,6 @@
   ; destruct 2a
   ; simpl
   (by-inversion H)
-  elim-False
-  by-assumption
   ; destruct 2b
   (by-inversion H #:as H1)
   (by-apply eq-remove-S)
@@ -294,7 +291,7 @@
           (rev (app l (cons n nil))))))
 
 ;; application of cons-rev
-(check-type 
+(check-type
  (λ (X : Type) (x : X) (xs : (list X))
     (cons-rev X (rev_ X xs) x))
  : (∀ [X : Type] [x : X] [xs : (list X)]
