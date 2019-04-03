@@ -58,14 +58,15 @@
       (or new-xss_
           (stx-map (λ (_) null) #'(Cinfo ...))))
 
-    ; === Extract rovided params (Aval ...) and indices (ival ...)
+    ; === Extract provided params (Aval ...) and indices (ival ...)
     (define/syntax-parse ((Aval ...) (ival ...))
       (syntax-parse name-ty
         [((~literal #%plain-app) _ . name-ty-args)
          (stx-split-at #'name-ty-args num-params)]))
 
     (define/syntax-parse (τi ...)
-      (substs #'(Aval ...) #'(A ...) #'(τi_ ...)))
+      (stx-map (normalize/ctxt ctxt)
+               (substs #'(Aval ...) #'(A ...) #'(τi_ ...))))
 
     ; === Generate subgoals for each data constructor case
     ;; subgoals : (listof ntt)
@@ -94,7 +95,6 @@
 
            #:with (iout ...) (map (normalize/ctxt ctxt+xs) (get-idxs #'τout))
            #:with (==-id ...) (stx-map (λ (_) (generate-temporary 'eq)) #'(i ...))
-           #:with (==-ty ...) #'[(== iout ival) ...]
 
            #;
            #:do #;[(printf "** ~s\n** ~s\n** ~s\n------------\n"
@@ -103,15 +103,18 @@
                          (map syntax->datum (attribute ==-id)))]
 
            ; Unify the provided indices (ival) with the constructor's indices (iout)
-           (match (prove-unifys (attribute iout)
+           (match (prove-unifys (attribute τi)
+                                (attribute iout)
                                 (attribute ival)
-                                (attribute ==-id))
+                                (attribute ==-id)
+                                #:normalize (normalize/ctxt ctxt+xs))
              ; Add derived equalities to context and make subgoal
              [(derived ==s ==-pfs)
               (define derived-==-ids   (map (λ (_) (next-id 'Heq)) ==s))
               (define derived-bindings (map mk-bind-stx derived-==-ids ==s))
 
               (define (update-ctxt ctxt)
+                ; NOTE: xrec not added to context -- TODO do something with it?
                 (for/fold ([ctxt ctxt])
                           ([x (in-list (append (attribute x)  derived-==-ids))]
                            [τ (in-list (append (attribute τx) ==s))])
@@ -148,6 +151,4 @@
            ; methods
            . #,(map (λ (mk pf) (mk pf)) mk-elim-methods pfs))
           ; arguments (refl proofs)
-          #,@(stx-map unexpand #'((refl τi ival) ...)))))))
-
-  )
+          #,@(stx-map unexpand #'((refl τi ival) ...))))))))

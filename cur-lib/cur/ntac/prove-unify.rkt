@@ -11,8 +11,6 @@
  "../stdlib/sugar.rkt"
  "../stdlib/equality.rkt"
  "../stdlib/nat.rkt"
- "base.rkt"
- "standard.rkt"
  (for-syntax "utils.rkt"
              ; (only-in macrotypes/typecheck-core subst substs)
              macrotypes/stx-utils
@@ -32,17 +30,18 @@
   ; 'contradiction' has type False.
   (struct impossible [contradiction])
 
-  ;; term-stx term-stx term-stx -> (or/c derived? impossible?)
+  ;; type-stx term-stx term-stx term-stx #:normalize (-> type-stx type-stx)
+  ;; ->
+  ;; (or/c derived? impossible?)
   ; Either returns (derived ..) containing equality proofs for subexpressions, or
   ;   returns (impossible ..) if unification is impossible.
-  ; NOTE: 'top-L' and 'top-R' must be terms of the same type.
+  ; NOTE: 'top-L' and 'top-R' must both be terms of type 'top-TY'.
   ;       'top-pf' must be a proof of '(== top-L top-R)'
-  (define (prove-unify top-L top-R top-pf)
+  (define (prove-unify top-TY top-L top-R top-pf #:normalize norm)
     (let/ec
         ; Escape cont allows us to immediately exit when we find a contradiction
         abort
 
-      (define top-TY (typeof top-L))
       (define top-id (generate-temporary 'x))
       (define contra-id (generate-temporary 'y))
 
@@ -76,7 +75,11 @@
           [{({~literal #%plain-app} CL:id L* ...)
             ({~literal #%plain-app} CR:id R* ...)}
            #:when (has-type-info? TY)
-           #:with (_ ([A _] ...) _ {~and Cinfo (C _ _)} ...) (get-match-info TY)
+           #:with (_ ([A _] ...) _ . Cinfos) (get-match-info TY)
+           #:with (_ ([_ τ_] ... _) _)
+                  (findf (λ (ci) (stx-datum-equal? (stx-car ci) #'CL))
+                         (stx->list #'Cinfos))
+           #:with (τ ...) (substs (stx-drop TY 2) #'(A ...) #'(τ_ ...))
 
            ; === If constructors differ, build a contradiction
            (unless (and (free-identifier=? #'CL #'CR)
@@ -94,14 +97,15 @@
                  (λ #,contra-id _
                     (match #,contra-id
                       #:return Type
-                      #,@(stx-map mk-match-clause #'(Cinfo ...))))
+                      #,@(stx-map mk-match-clause #'Cinfos)))
                  I)))
 
            ; === Constructors match; recur into subexpressions
            (for ([i (in-naturals)]
                  [L* (in-list (stx-drop #'(L* ...) (stx-length #'(A ...))))]
-                 [R* (in-list (stx-drop #'(R* ...) (stx-length #'(A ...))))])
-             (define TY* (typeof L*))
+                 [R* (in-list (stx-drop #'(R* ...) (stx-length #'(A ...))))]
+                 [τ (in-list (stx->list #'(τ ...)))])
+             (define TY* (norm τ))
              (define (mk-match-clause Cinfo)
                (syntax-parse Cinfo
                  [[C ([x _] ... _) _]
@@ -112,7 +116,7 @@
              (TRAV TY* L* R*
                    #`(match #,term
                        #:return #,(unexpand TY*)
-                       #,@(stx-map mk-match-clause #'(Cinfo ...)))))]
+                       #,@(stx-map mk-match-clause #'Cinfos))))]
 
           [_
            ; === Can't traverse terms any further, so emit a proof now
@@ -124,17 +128,18 @@
       ; -- finished with TRAV, return the proofs --
       (derived ==s proofs)))
 
-  (define (prove-unifys Ls Rs pfs)
+  (define (prove-unifys TYs Ls Rs pfs #:normalize norm)
     (define-values [==s derived-pfs imposs]
-      (for/fold ([==s '()] [pfs '()] [abort? #f])
-                ([L (in-list Ls)]
+      (for/fold ([==s '()] [derived-pfs '()] [abort? #f])
+                ([TY (in-list TYs)]
+                 [L (in-list Ls)]
                  [R (in-list Rs)]
                  [pf (in-list pfs)]
                  #:break abort?)
-        (match (prove-unify L R pf)
+        (match (prove-unify TY L R pf #:normalize norm)
           [(derived ==s* pfs*)
            (values (append ==s* ==s)
-                   (append pfs* pfs)
+                   (append pfs* derived-pfs)
                    #f)]
           [(and im (impossible q))
            (values #f #f im)])))
