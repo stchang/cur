@@ -4,7 +4,7 @@
          cur/stdlib/prop
          cur/ntac/base
          cur/ntac/standard
-         cur/ntac/rewrite
+         (except-in cur/ntac/rewrite by-inversion)
          cur/ntac/inversion
          rackunit/turnstile
          "../rackunit-ntac.rkt")
