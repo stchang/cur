@@ -101,7 +101,7 @@
 (define-theorem ev-minus2
   (∀ [n : nat] (-> (ev n) (ev (pred (pred n)))))
   (by-intros n E)
-  (by-inversion* E #:as [(Heq) (n1 E1 Heq)])
+  (by-inversion E #:as [(Heq) (n1 E1 Heq)])
   ;; subgoal 1
   (by-rewriteL Heq)
   (by-apply ev0)
@@ -161,19 +161,19 @@
 (check-type ev-minus2/destruct
   : (forall [n : nat] (-> (ev n) (ev (pred (pred n))))))
 
-(define-theorem true-isnt-false/inversion* (Not (== true false))
+(define-theorem true-isnt-false/inversion (Not (== true false))
  (by-intro H)
- (by-inversion* H))
+ (by-inversion H))
 
-(define-theorem not-ev-3/inversion* (Not (ev 3))
+(define-theorem not-ev-3/inversion (Not (ev 3))
   (by-intros E)
-  (by-inversion* E #:as [() (n1 E1 Heq)])
+  (by-inversion E #:as [() (n1 E1 Heq)])
   ; TODO: automatically rewrite Heq into context
   ; or at least, support (by-rewrite ... #:in H)
   (by-assert H (ev 1))
   (by-rewriteL Heq)
   (by-apply E1)
-  (by-inversion* H))
+  (by-inversion H))
 
 ;; test more than 1 index
 (define-datatype le : [n : nat] [m : nat] -> Prop
