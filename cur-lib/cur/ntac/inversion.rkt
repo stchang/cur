@@ -1,8 +1,5 @@
 #lang s-exp "../main.rkt"
-(provide
- (for-syntax
-  by-inversion*
-  inversion*))
+(provide (for-syntax by-inversion inversion))
 
 (require
  "../stdlib/prop.rkt" ; for False (see inversion), And (rewrite)
@@ -23,13 +20,13 @@
 
 (begin-for-syntax
 
-  (define-syntax (by-inversion* syn)
+  (define-syntax (by-inversion syn)
     (syntax-parse syn
-      [(_ H) #'(fill (inversion* #'H))]
-      [(_ H #:as name:id ...) #'(fill (inversion* #'H #'[(name ...)]))]
-      [(_ H #:as (names ...)) #'(fill (inversion* #'H #'(names ...)))]))
+      [(_ H) #'(fill (inversion #'H))]
+      [(_ H #:as name:id ...) #'(fill (inversion #'H #'[(name ...)]))]
+      [(_ H #:as (names ...)) #'(fill (inversion #'H #'(names ...)))]))
 
-  (define ((inversion* name [new-xss_ #f]) ctxt pt)
+  (define ((inversion name [new-xss_ #f]) ctxt pt)
     (match-define (ntt-hole _ goal) pt)
     (define name-ty (or (ctx-lookup ctxt name) ; thm in ctx
                         (typeof (expand/df name))))
