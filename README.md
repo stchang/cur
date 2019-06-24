@@ -1,6 +1,15 @@
 cur [![Build Status](https://travis-ci.org/stchang/cur.svg?branch=turnstile-core)](https://travis-ci.org/stchang/cur/)
 ===
 
+this branch: `verified-require` (branch off `turnstile-core`)
+=============================
+
+Experiment with `require` and `provide` forms that use public-key crypto.
+
+Specifically, `(provide/sign name privkey)` allows signing a
+`provide`d name and `(require/verify name pubkey)` only successfully
+imports `name` if the keys match.
+
 this branch: `turnstile-core`
 =============================
 
