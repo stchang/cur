@@ -1,6 +1,13 @@
 cur [![Build Status](https://travis-ci.org/stchang/cur.svg?branch=turnstile-core)](https://travis-ci.org/stchang/cur/)
 ===
 
+this branch: `generic-type-methods` (branch off `turnstile-core`)
+=============================
+
+Experiment with syntax for declaring generic type methods.
+
+- requires macrotypes `generic-type-methods` branch
+
 this branch: `turnstile-core`
 =============================
 

@@ -305,10 +305,10 @@
    [≻ (begin-
       ;; Define the inductive type `TY`.
       (define-type* TY : [A : τA] ... [i : τi] ... -> τ
-        #:extra elim-TY
+        #:implements get-datatype-def #'(elim-TY
         ([A τA] ...)
         ([i τi] ...)
-        (C ([i+x τin] ... τout) ((xrec irec ...) ...)) ...)
+        (C ([i+x τin] ... τout) ((xrec irec ...) ...)) ...))
 
       ;; Define the constructors.
       (define-data-constructor C [AxC : τAxC] ... : [i+x : τin] ... -> τout) ...
@@ -391,7 +391,7 @@
 (begin-for-syntax
   ; Differs from turnstile's get-match into in that it accepts an identifer
   (define (get-match-info I)
-    (type-info-match (eval-syntax I)))
+    (dict-ref (eval-syntax I) #'get-datatype-def))
 
   ; Identifier X is not free in type Y
   (define (not-free-in? X Y)
