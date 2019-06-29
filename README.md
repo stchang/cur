@@ -1,6 +1,25 @@
 cur [![Build Status](https://travis-ci.org/stchang/cur.svg?branch=turnstile-core)](https://travis-ci.org/stchang/cur/)
 ===
 
+this branch: `metantac` (branch off `turnstile-core`)
+=============================
+
+Experiment metantac: meta DSL for writing tactics:
+- `define-tactic`
+  - use:
+    ```
+    (define-tactic name
+     [<input pat> #:current-goal <goal pat>
+     ... implicit binders: $goal, $ctx, $pt, $ptz
+     ($fill <partial term with ?holes>
+       #:where
+       [[x : ty] ... |- ?hole1 : subgoal1] ...)] ...)
+    ```
+  - `$fill` generates `make-ntt-apply`:
+    - partial term is the lambda body
+	- and the `#:where` generates `make-ntt-hole` nodes (and `make-ntt-context` when needed)
+- `define-tactical`
+
 this branch: `turnstile-core`
 =============================
 
