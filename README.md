@@ -1,7 +1,12 @@
 cur [![Build Status](https://travis-ci.org/stchang/cur.svg?branch=turnstile-core)](https://travis-ci.org/stchang/cur/)
 ===
 
-this branch: `turnstile-core`
+this branch: `deppat` (branch off `turnstile-core`)
+=============================
+
+- experiment with Agda "inaccessible" patterns in dependent pattern match
+
+parent branch: `turnstile-core`
 =============================
 
 - work-in-progress replacing Cur core with a Turnstile lang

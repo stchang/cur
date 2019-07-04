@@ -7,7 +7,8 @@
 (provide let
          match
          define-implicit
-         define/rec/match)
+         define/rec/match
+         define/rec/match*)
 
 (require (prefix-in r: racket/base)
          (for-syntax (for-syntax syntax/parse)
@@ -280,6 +281,113 @@
             ----
             [≻ ((λ [x : ty_in1] ... [x0 : ty-to-match] ... [y : ty_in2] ...
                   (name x ... x0 ... y ...))
+                arg (... ...))]])
+         (define-red name-eval #:display-as name [red-pat ~> body--] ...))
+     ;     #:do[(pretty-print (syntax->datum #'OUT))]
+     -----
+     [≻ OUT]])
+
+
+;; -------------------------------------------------------------------------------
+;; define/rec/match* --------------------------------------------------
+;; same as define/rec/match, but all args are named, matchers are after colon
+(define-typed-syntax define/rec/match*
+  [(_ name:id
+      [x (~datum :) ty_in1] ...
+      (~datum :)
+      [y (~datum :) ty_in2] ...
+      (~datum ->) ty_out
+      [((~datum $inacc) imppat) ... pat ... (~datum =>) body] ...) ≫
+     #:with (([xpat xpatτ] ...) ...)
+     (stx-map
+      (λ (imppats pats)
+        (stx-appendmap pat->ctxt pats (stx-drop #'(ty_in2 ...) (stx-length imppats))))
+      #'((imppat ...) ...)
+      #'((pat ...) ...)) ; no $imppat
+;     #:do[(printf "pattern binders: ~a\n" (stx->datum #'(([xpat xpatτ] ...) ...)))]
+     #:with (x0 ...) #'(y ...)
+     #:with (([x+pat x+patτ] ...) ...) (stx-map
+                                        (λ (x+τs)
+                                          #`(#,@#'((x ty_in1) ...)
+                                             #,@#'((y ty_in2) ...)
+                                             #,@x+τs))
+                                        #'(([xpat xpatτ] ...) ...))
+     #:with (ty_in2/rec ...) (stx-map ; 'recur is for termination check
+                              (λ (t) (syntax-property t 'recur #t))
+                              #'(ty_in2 ...))
+     #:do[(define old-tycheck (current-typecheck-relation))
+          (current-typecheck-relation ; new typecheck-relation with termination guard check
+           (λ (t1 t2)
+             (and (old-tycheck t1 t2)
+                  (or (not (syntax-property t2 'recur))
+                      (and (syntax-property t2 'recur)
+                           (let ([t1-recur-ok? (syntax-property t1 'recur)])
+                             (begin0 t1-recur-ok?
+                               (unless t1-recur-ok?
+                                 (fprintf (current-error-port)
+                                          "Failed termination check for arg of type ~a:\n"
+                                          (stx->datum (resugar-type t1)))))))))))]
+     #:with (ty_out/inst ...) (stx-map
+                               (λ (ps)
+                                 (substs ps #'(y ...) #'ty_out))
+                               #'((imppat ... pat ...) ...))
+ ;    #:do[(printf "checking: ~a\n" #'name)]
+     [([x+pat ≫ x+pat- : x+patτ] ...
+       ;; for now, assume recursive references are fns
+       [name ≫ name- : (Π [x : ty_in1] ... [y : ty_in2/rec] ... ty_out)])
+      ⊢ body ≫ body- ⇐ ty_out/inst] ...
+  ;   #:do[(printf "check done: ~a\n" #'name)]
+     #:do[(current-typecheck-relation old-tycheck)]
+     #:do[(define arity (stx-length #'(x ... y ...)))]
+     ;; #:do[
+     ;;      (displayln 'body-)
+     ;;      (stx-map (compose displayln syntax->datum) #'(body- ...))]
+     #:with ((x*- ...) ...) (stx-map ; non-matched args
+                             (λ (x+pats imppats)
+                               (stx-take x+pats (stx-length #`(x ... . #,imppats))))
+                             #'((x+pat- ...) ...)
+                             #'((imppat ...) ...))
+     #:with ((xpat- ...) ...) (stx-map ; matched args
+                               (λ (x+pats)
+                                 (stx-drop x+pats (stx-length #'(x ... y ...))))
+                               #'((x+pat- ...) ...))
+     #:with (x0- ...) (generate-temporaries #'(x0 ...))
+     #:with (x- ...) (generate-temporaries #'(x ...))
+     #:with (y- ...) (generate-temporaries #'(y ...))
+     #:with name-eval (mk-eval #'name)
+     ;; need to "unsubst" recursive references to (to-be-defined) calls to name-eval
+     #:with (body-- ...) (stx-map
+                          (λ (n- b)
+                            (reflect
+                             ((unsubst-app n- #'name-eval arity) b)))
+                          #'(name- ...)
+                          #'(body- ...))
+     ;; #:do[
+     ;;      (displayln 'body--)
+     ;;      (stx-map (compose displayln syntax->datum) #'(body-- ...))]
+     ;; TODO: dont need to typecheck again on recursive call?
+     #:with ((pat- ...) ...) (stx-map
+                              substs
+                              #'((xpat- ...) ...)
+                              #'((xpat ...) ...)
+                              #'((pat ...) ...))
+     #:with (red-pat ...) #'((#%plain-app x*- ... pat- ...) ...)
+     #:with OUT
+     #'(begin
+         ;; this macro uses the patvar reuse technique
+         ;; ie, references to x in x0 will be instantiated to the type bound to x
+         (define-typed-syntax name
+           [(_ x ... y ... ~!) ≫
+            [⊢ x ≫ x- ⇐ ty_in1] ...
+            [⊢ y ≫ y- ⇐ ty_in2] ...
+            ----------
+            [⊢ (name-eval x- ... y- ...) ⇒ ty_out]]
+           ; non-full application cases: η expand
+           [:id ≫ --- [≻ (name)]]
+           [(_ arg (... ...)) ≫ 
+            ----
+            [≻ ((λ [x : ty_in1] ... [y : ty_in2] ...
+                  (name x ... y ...))
                 arg (... ...))]])
          (define-red name-eval #:display-as name [red-pat ~> body--] ...))
      ;     #:do[(pretty-print (syntax->datum #'OUT))]
