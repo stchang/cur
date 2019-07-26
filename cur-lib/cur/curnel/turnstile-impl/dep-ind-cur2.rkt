@@ -58,8 +58,30 @@
 (define-syntax (Π- stx)
   (syntax-parse stx
     [(_ (x (~datum :) A) B)
-     (quasisyntax/loc stx
-       (Π-- A (λ- (x) B)))]))
+     (syntax/loc stx
+       (#%plain-app Π-- A (λ- (x) B)))]))
+
+(begin-for-syntax
+  #;(displayln (syntax->datum (expand/df #'(Π (x : (Type 0)) (Type 0)))))
+  (define Π-id (expand/df #'Π--))
+  (define-syntax ~Π
+    (pattern-expander
+     (syntax-parser
+       [(_ (x (~datum :) A) B)
+        #'(~or
+           ((~literal Π) (x (~datum :) A) B)   ; unexpanded
+           ((~literal #%plain-app) ; expanded
+            (~and C:id ; TODO: this free-id=? sometimes fails
+                  (~fail #:unless (stx-datum-equal? #;free-identifier=? #'C Π-id)
+                         (format "type mismatch, expected Π--, given ~a"
+                                 (syntax->datum #'C))))
+            A ((~literal #%plain-lambda) (x) B)))])))
+
+  (define Π--
+    (type-info
+     #f ; match info
+     (syntax-parser [(~Π (x : A) B) (syntax/loc this-syntax (Π (x : A) B))]) ; resugar
+     (syntax-parser [(~Π (x : A) B) (syntax/loc this-syntax (Π (x : A) B))]))))
 
 ;; old Π/c now Π, old Π now Π/1
 (define-typed-syntax Π
@@ -82,22 +104,6 @@
    [[x ≫ x- : A-] ⊢ B ≫ B- ⇒ (~Type m:nat)]
    ---------
    [⊢ (Π- (x- : A-) B-) ⇒ (Type #,(max (syntax-e #'n) (syntax-e #'m)))]])
-
-(begin-for-syntax
-  #;(displayln (syntax->datum (expand/df #'(Π (x : (Type 0)) (Type 0)))))
-  (define Π-id (expand/df #'Π--))
-  (define-syntax ~Π
-    (pattern-expander
-     (syntax-parser
-       [(_ (x (~datum :) A) B)
-        #'(~or
-           ((~literal Π) (x (~datum :) A) B)   ; unexpanded
-           ((~literal #%plain-app) ; expanded
-            (~and C:id ; TODO: this free-id=? sometimes fails
-                  (~fail #:unless (stx-datum-equal? #;free-identifier=? #'C Π-id)
-                         (format "type mismatch, expected Π--, given ~a"
-                                 (syntax->datum #'C))))
-            A ((~literal #%plain-lambda) (x) B)))]))))
 
 ;; type check relation --------------------------------------------------------
 ;; - must come after type defs
