@@ -1,10 +1,10 @@
 #lang s-exp "../main.rkt"
 
 (provide
- (rename-out [I T]
-             [conj/i conj]
+ (rename-out [conj/i conj]
              [or_introL left]
              [or_introR right])
+ I
  True
  False
  Not
@@ -15,7 +15,8 @@
  pf:anything-implies-true
  thm:and-is-symmetric pf:and-is-symmetric
  thm:proj1 pf:proj1
- thm:proj2 pf:proj2)
+ thm:proj2 pf:proj2
+ (for-syntax ~And ~Or ~True ~False))
 
 (require "sugar.rkt")
 
