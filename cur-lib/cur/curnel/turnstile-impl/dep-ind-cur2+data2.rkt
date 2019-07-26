@@ -258,21 +258,32 @@
           ;; τi instantiated with A ... from v-
           ;; nb: without this conditional, sf/Poly.rkt fails with mysterious tyerr
           #,@(if (zero? (+ num-params num-idxs))
-                ;; TODO: Any restrictions on these universe levels?
-                (list #'[⊢ P ≫ P- ⇒ (~Π [t* : TY-patexpand] (~Type motive_level:nat))])
+                 ;; NB: Hack to get better inference on motives.
+                 ;; I *expect* the user will never use a type as large as 9001,
+                 ;; and so this is a reasonable type to check against.
+                 ;; The right approach is to add some kind of universe
+                 ;; polymorphism, or unification, but I'm not going to do that yet.
+                 ;; TODO: Generate multiple clauses, one that tries this, and
+                 ;; one that falls back to inference.
+                 (list
+                  #'[⊢ P ≫ P- ⇐ (→ TY (Type 9001))])
                 (list
                  ;; TODO: This much more intuitive thing doesn't work because ~Π
                  ;; patterns can't be nested this way... think they could, if ~Π
                  ;; was implemented using stx-parse/fold-right?
                  ;#'[⊢ P ≫ P- ⇒ (~Π [i** : τi] ...
                  ;                  (~Π [t* : (TY-patexpand A ... i** ...)] (~Type motive_level:nat)))]
-                 #'[⊢ P ≫ P- ⇒ (~Π [i** : τi**] (... ...) ; TODO: unexpand τi? (may reference A ...?)
-                                   (~Type motive_level:nat))]
-                 #'#:when
-                 #'(typecheck?
-                    (expand/df #'(Π [i** : τi**] (... ...) (Type motive_level)))
-                    (expand/df #`(Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
-                         (→ (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type motive_level)))))
+                 ; The infer version:
+                 ;#'[⊢ P ≫ P- ⇒ (~Π [i** : τi**] (... ...) ; TODO: unexpand τi? (may reference A ...?)
+                 ;                  (~Type motive_level:nat))]
+                 ;#'#:when
+                 ;#'(typecheck?
+                 ;   (expand/df #'(Π [i** : τi**] (... ...) (Type motive_level)))
+                 ;   (expand/df #`(Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
+                 ;        (→ (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type motive_level)))))
+                 #'[⊢ P ≫ P- ⇐ (Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
+                                  (-> (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type 9001)))]
+
                  ))
 
           ;; each m is curried fn consuming 3 (possibly empty) sets of args:
