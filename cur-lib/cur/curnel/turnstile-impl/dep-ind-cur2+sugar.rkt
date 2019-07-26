@@ -5,14 +5,19 @@
 
 ;; dep-ind-cur2 library, adding some sugar like auto-currying
 
-(provide (for-syntax (rename-out [~Π/c ~Π]))
+(provide (for-syntax (rename-out [~Π/c ~Π]) ~→ (rename-out [~→ ~->]))
          → ; → = Π = ∀
          (rename-out
           [→ Π] [→ Pi] [→ ∀] [→ forall] [→ ->]
           [λ/c λ] [λ/c lambda] [app/c #%app] [app/eval/c app/eval]
           [define/c define]))
 
-(begin-for-syntax
+(module xs racket/base
+  (require
+   syntax/stx
+   racket/syntax
+   syntax/parse)
+  (provide xs+τ)
   (define-syntax-class xs+τ #:attributes ([fst 0] [rst 1])
     (pattern [(~var x0 id) (~var x id) ... (~datum :) τ]
              #:with fst #'[x0 : τ]
@@ -29,6 +34,7 @@
 ;; (→ [x y z : τ] ... τout)
 ;; (→ [x : τ] ... τout)
 ;; (→ τ ... τout)
+(require (for-syntax 'xs))
 (define-syntax →
   (syntax-parser
     [(_ t) #'t]
@@ -46,7 +52,16 @@
        [(_ (~var b x+τ) (~and (~literal ...) ooo) t_out)
         #'(~and TMP
                 (~parse ([b.x (~datum :) b.τ] ooo t_out)
-                        (stx-parse/fold #'TMP (~Π b rst))))]))))
+                        (stx-parse/fold #'TMP (~Π b rst))))])))
+
+  (require (for-syntax 'xs))
+  (define-syntax ~→
+    (pattern-expander
+     (syntax-parser
+       [(_ t) #'t]
+       [(_ (~var b xs+τ) . rst)
+        (quasisyntax/loc this-syntax
+          (~Π b.fst #,(quasisyntax/loc this-syntax (~→ b.rst ... . rst))))]))))
 
 ;; abbrevs for Π/c
 ;; (→ τ_in τ_out) == (Π (unused : τ_in) τ_out)
