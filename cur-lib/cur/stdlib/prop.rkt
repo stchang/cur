@@ -5,7 +5,7 @@
              [conj/i conj]
              [or_introL left]
              [or_introR right])
- True T
+ True
  False
  Not
  And
