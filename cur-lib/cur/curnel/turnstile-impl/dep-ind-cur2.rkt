@@ -80,8 +80,14 @@
   (define Π--
     (type-info
      #f ; match info
-     (syntax-parser [(~Π (x : A) B) (syntax/loc this-syntax (Π (x : A) B))]) ; resugar
-     (syntax-parser [(~Π (x : A) B) (syntax/loc this-syntax (Π (x : A) B))]))))
+     (syntax-parser
+       [(~Π (x : A) B)
+        (quasisyntax/loc this-syntax
+          (Π (x : #,(resugar-type #'A)) #,(resugar-type #'B)))]) ; resugar
+     (syntax-parser
+       [(~Π (x : A) B)
+        (quasisyntax/loc this-syntax
+          (Π (x : #,(unexpand #'A)) #,(unexpand #'B)))]))))
 
 ;; old Π/c now Π, old Π now Π/1
 (define-typed-syntax Π

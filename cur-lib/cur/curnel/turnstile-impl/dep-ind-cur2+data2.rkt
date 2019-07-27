@@ -282,7 +282,7 @@
                  ;   (expand/df #`(Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
                  ;        (→ (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type motive_level)))))
                  #'[⊢ P ≫ P- ⇐ (Π [i : τi] ... ; TODO: unexpand τi? (may reference A ...?)
-                                  (-> (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type 9001)))]
+                                  (→ (TY #,@(stx-map unexpand #'(A ...)) i ...) (Type 9001)))]
 
                  ))
 
