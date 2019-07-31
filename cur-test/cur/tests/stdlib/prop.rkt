@@ -1,6 +1,7 @@
 #lang cur
 (require
  cur/stdlib/prop
+ (submod cur/stdlib/prop tauto)
  cur/stdlib/sugar
  cur/stdlib/bool
  cur/stdlib/nat
@@ -14,12 +15,12 @@
 
 (check-type (conj True True I I) : (And True True))
 
-(check-type (or_introL True False I) : (Or True False))
-(check-type (or_introL True True I) : (Or True True))
-(typecheck-fail (or_introL False True I) #:with-msg "expected.*False.*given.*True")
-(check-type (or_introR False True I) : (Or False True))
-(check-type (or_introR True True I) : (Or True True))
-(typecheck-fail (or_introR True False I) #:with-msg "expected.*False.*given.*True")
+(check-type (left True False I) : (Or True False))
+(check-type (left True True I) : (Or True True))
+(typecheck-fail (left False True I) #:with-msg "expected.*False.*given.*True")
+(check-type (right False True I) : (Or False True))
+(check-type (right True True I) : (Or True True))
+(typecheck-fail (right True False I) #:with-msg "expected.*False.*given.*True")
 
 (check-type (tauto True) : True)
 (check-type (tauto (And True True)) : (And True True))
@@ -38,9 +39,9 @@
 (check-type pf:proj2 : thm:proj2)
 
 ;; test infer
-(check-type (conj (conj T T) T)
+(check-type (conj (conj I I) I)
             : (And (And True True) True)
-            -> (conj (And True True) True (conj True True T T) T))
+            -> (conj (And True True) True (conj True True I I) I))
 
 ;; A or A
 
@@ -49,13 +50,9 @@
 
 (define proof:A-or-A
   (lambda (A : Type) (c : (Or A A))
-          (elim Or (lambda (c : (Or A A)) A)
-                [(lambda (a : A) a)
-                 (lambda (b : A) b)]
-                c)
-          #;(new-elim c (lambda (c : (Or A A)) A)
-                [(lambda (a : A) a)
-                 (lambda (b : A) b)])))
+          (new-elim c (lambda (c : (Or A A)) A)
+                (lambda (a : A) a)
+                 (lambda (b : A) b))))
 
 (check-type proof:A-or-A : thm:A-or-A)
 

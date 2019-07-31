@@ -6,10 +6,14 @@
              [or_introR right])
  I
  True
+ elim-True
  False
+ elim-False
  Not
  Or
+ elim-Or
  And
+ elim-And
  ∧ ∨ ¬
  iff iff-sym ↔
  thm:anything-implies-true
