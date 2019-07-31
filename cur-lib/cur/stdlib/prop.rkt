@@ -8,6 +8,7 @@
  True
  False
  Not
+ Or
  And
  ∧ ∨ ¬
  iff iff-sym ↔
