@@ -13,33 +13,28 @@
  (all-from-out "coc-saccharata.rkt")
  define-datatype
  (for-syntax
-  ; rename for backwards compatibility, for now.
-  (rename-out
-   [type-pattern-transformer datacons]
-   [type-pattern-transformer-pattern->ctxt datacons-pat->ctxt]
-   [pattern->ctxt pat->ctxt])
+  mk-cons+pat-transformer
+  (rename-out [pattern->ctxt pat->ctxt])
   (rename-out [get-is get-idxs/unexp])))
 
-;;; Define a notion of transformer for types that can be used as patterns.
-;;;
-;;; NOTE: This stuff will go away once we merge turnstile's generic type function
-;;; stuff.
+;;; Define abbreviation for a typerule that is also usable in pattern position
 ;;; -----------------------------------------------------------
 
 (begin-for-syntax
-  ;; A type-pattern-transformer is a syntax-transformer that can be used as a
-  ;; turnstile typed-term or in a pattern matcher to bind its arguments.
-  (struct type-pattern-transformer (transformer pattern->ctxt)
-    #:property prop:procedure (struct-field-index transformer))
+ (define-tycons-instance mk-cons+pat-transformer pat->ctxt)
 
+  ;; pat->ctxt :
   ;; Transform a pattern `pat` of 'type' `ty` into a a ctxt, representing the
   ;; arguments (and their types) that will be bound in the clause of matcher
   ;; using this pattern.
+  (define-generic-type-method (pat->ctxt pat ty) #:unexpanded)
+
+  ;; wrapper for pat->ctxt, includes some general cases, eg _ and lone variables.
   (define (pattern->ctxt pat ty)
     (syntax-parse pat
       [(~or C:id (C:id . _))
-       #:when (type-pattern-transformer? (syntax-local-value #'C (λ () #f)))
-       ((type-pattern-transformer-pattern->ctxt (syntax-local-value #'C)) pat ty)]
+       #:when (has-method? #'C #'pat->ctxt)
+       (pat->ctxt pat ty)]
       ; datum
       [(~datum _) null]
       ; pattern variable case
@@ -79,7 +74,7 @@
          (define-type name/internal : [A : τA] ... [i+x : τ] ... -> τ-out . rst)
 
          (define-syntax name
-           (type-pattern-transformer
+           (mk-cons+pat-transformer
 
             ; If the constructor `name` is used as a function, support automagic currying.
             ; NOTE: η-expand the transformer to preserve source location information.
@@ -89,7 +84,6 @@
                   (λ [A : τA] ... [i+x : τ] ...
                      #,(syntax/loc stx (name/internal A ... i+x ...)))))
                stx))
-
             ; Setup the pattern transformer for `name`.
             ; pat should have type t (unexpanded type)
             (λ (pat t)

@@ -323,7 +323,7 @@
                    [(_ . rst) #'(name Ximplicit ... . rst)])))))
         
       (define-syntax name*
-        (datacons
+        (mk-cons+pat-transformer
         (λ (stx)
         (syntax-parse/typecheck stx
       #,@(if (= (stx-length #'(X ...)) (stx-e #'n)) ; all args are implicit
