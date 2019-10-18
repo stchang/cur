@@ -7,7 +7,8 @@ this branch: `popl2020-artifact`
 =============================
 
 ## install instructions
-  - install Racket
-  - install Turnstile+
+  - install [Racket 7.4](https://download.racket-lang.org/)
+  - clone and install [Turnstile+](https://github.com/stchang/cur/tree/popl2020-artifact)
   - To install Cur: `make install` (from repo root)
+  - To check install (run tests): `make test` (from repo root)
   - To remove Cur: `make remove` (from repo root)
