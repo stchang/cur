@@ -1,7 +1,7 @@
 # Cur Makefile
 
 install:
-	raco pkg install -D --auto -t dir cur-lib/ cur-test/
+	raco pkg install --auto -t dir cur-lib/ cur-test/
 
 test:
 	raco test -j 4 -p cur-test
