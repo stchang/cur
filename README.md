@@ -15,3 +15,4 @@ this branch: `popl2020-artifact`
 - this branch initially created from `turnstile-core` branch
 - also merged in commits from the following branches:
   - `generic-type-methods`
+  - `metantac`

@@ -17,25 +17,11 @@
   (rename-out [pattern->ctxt pat->ctxt])
   (rename-out [get-is get-idxs/unexp])))
 
-;; <<<<<<< HEAD
-;; ;;; Define a notion of transformer for types that can be used as patterns.
-;; ;;;
-;; ;;; NOTE: This stuff will go away once we merge turnstile+'s generic type function
-;; ;;; stuff.
-;; ;;; -----------------------------------------------------------
-
-;; (begin-for-syntax
-;;   ;; A type-pattern-transformer is a syntax-transformer that can be used as a
-;;   ;; turnstile+ typed-term or in a pattern matcher to bind its arguments.
-;;   (struct type-pattern-transformer (transformer pattern->ctxt)
-;;     #:property prop:procedure (struct-field-index transformer))
-;; =======
 ;;; Define abbreviation for a typerule that is also usable in pattern position
 ;;; -----------------------------------------------------------
 
 (begin-for-syntax
  (define-tycons-instance mk-cons+pat-transformer pat->ctxt)
-;; >>>>>>> generic-type-methods
 
   ;; pat->ctxt :
   ;; Transform a pattern `pat` of 'type' `ty` into a a ctxt, representing the
