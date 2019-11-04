@@ -16,3 +16,4 @@ this branch: `popl2020-artifact`
 - also merged in commits from the following branches:
   - `generic-type-methods`
   - `metantac`
+  - `turnstile-core+rosette`
