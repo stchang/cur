@@ -101,6 +101,8 @@
   (define next-ptz
     (with-handlers ([exn:fail:ntac:goal?
                      (lambda (e)
+                       (reset-current-proof!)
+                       (current-tracing? #f)
                        (displayln (exn->string e))
                        curr-ptz)])
       (eval-proof-step curr-ptz cmd-stx)))
