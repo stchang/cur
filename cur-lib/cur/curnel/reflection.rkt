@@ -1,28 +1,29 @@
 #lang racket/base
 (require
- racket/list
- racket/syntax
- racket/function
- syntax/stx
  syntax/parse
- syntax/to-string
- ;"type-reconstruct.rkt"
-; "eval.rkt"
-; "runtime-utils.rkt"
-; (rename-in "equiv.rkt" [cur-equal? _cur-equal?])
-; "stxutils.rkt"
-; (for-template "type-check.rkt")
- ;(for-template "runtime.rkt")
- (only-in macrotypes/stx-utils transfer-props)
- (for-template (only-in macrotypes/typecheck infer typecheck? type=?))
- (for-template (only-in macrotypes/typecheck-core typeof subst substs))
- (for-template turnstile+/typedefs)
- (for-template macrotypes/stx-utils)
+;;  racket/list
+;;  racket/syntax
+;;  racket/function
+;;  syntax/stx
+;;  syntax/parse
+;;  syntax/to-string
+;;  ;"type-reconstruct.rkt"
+;; ; "eval.rkt"
+;; ; "runtime-utils.rkt"
+;; ; (rename-in "equiv.rkt" [cur-equal? _cur-equal?])
+;; ; "stxutils.rkt"
+;; ; (for-template "type-check.rkt")
+;;  ;(for-template "runtime.rkt")
+;;  (only-in macrotypes/stx-utils transfer-props)
+;;  (for-template (only-in macrotypes/typecheck infer typecheck? type=?))
+;;  (for-template (only-in macrotypes/typecheck-core typeof subst substs))
+;;  (for-template turnstile+/typedefs)
+;;  (for-template macrotypes/stx-utils)
  (for-template "coc.rkt")
- (for-template (only-in racket/base quote #%expression void #%plain-lambda #%plain-app list))
+;;  (for-template (only-in racket/base quote #%expression void #%plain-lambda #%plain-app list))
  )
 
-(provide
+#;(provide
 ;; with-env
 ;; call-with-env
  cur->datum
@@ -41,9 +42,9 @@
  cur-pretty-print
  ;;cur-step
  cur-equal?)
-(define debug-reflect? #f)
-(define debug-datatypes? #f)
-(define debug-scopes? #f)
+;; (define debug-reflect? #f)
+;; (define debug-datatypes? #f)
+;; (define debug-scopes? #f)
 
 
 ;(require racket/trace debug-scopes)
@@ -65,7 +66,7 @@
    (lambda (s l n)
      (ctpr s (map (compose add-scopes) l) n))))
 
-(define (env->ctx env) ;`((,#'x . ,#'Type) ...) -> #'([x : type] ...)
+#;(define (env->ctx env) ;`((,#'x . ,#'Type) ...) -> #'([x : type] ...)
   (let ([ctx (datum->syntax #f
                             (map (λ (pr)
                                    (let ([term (car pr)]
@@ -74,16 +75,16 @@
 
     ctx))
 
-(define (turnstile-infer syn #:local-env [env '()])
+#;(define (turnstile-infer syn #:local-env [env '()])
   (let* ([ctx (env->ctx env)]
          [type (car (cadddr (infer (list syn) #:ctx ctx)))])
     type))
 
-(define (turnstile-expand syn #:local-env [env '()]) ;returns ((tvs) (xs) (es) (τs))
+#;(define (turnstile-expand syn #:local-env [env '()]) ;returns ((tvs) (xs) (es) (τs))
   (let ([ctx (env->ctx env)])
     (infer (list syn) #:ctx ctx)))
 
-(define (cur-type-infer syn #:local-env [env '()])
+#;(define (cur-type-infer syn #:local-env [env '()])
  (let cur-type-infer ([syn syn]
                         [env env])
  (let* ([expanded (turnstile-expand syn #:local-env env)]
@@ -102,47 +103,47 @@
     (cur-reflect (cur-expand (transfer-props (first τs-ls) (substs env-ids xs-ls  (first τs-ls))) #:local-env env)))))
 
 
-(define (cur-type-check? term expected-type #:local-env [env '()])
+#;(define (cur-type-check? term expected-type #:local-env [env '()])
   (let ([inferred-type (turnstile-infer term #:local-env env)])
     ;(displayln (format "inferred: ~a\nexpected: ~a" (syntax->datum inferred-type) (syntax->datum expected-type)))
     (typecheck? inferred-type expected-type #;(cur-expand expected-type #:local-env env))))
 
-(define (cur->datum syn)
+#;(define (cur->datum syn)
   (let ([expanded (cur-expand syn)])
     ;(displayln (format "expanded: ~a" expanded))
     (let ([reflected (cur-reflect expanded)])
       ;(displayln (format "reflected: ~a" reflected))
       (syntax->datum reflected))))
 
-(define (cur-normalize syn #:local-env [env '()])
+#;(define (cur-normalize syn #:local-env [env '()])
     (let ([evaled (cur-expand syn #:local-env env)])
       #;(displayln (format "in cur-normalize, syn: ~a, evaled: ~a" syn evaled))
       evaled
     #;(cur-reflect evaled)))
 
-(define (cur-equal? term1 term2 #:local-env [env '()])
+#;(define (cur-equal? term1 term2 #:local-env [env '()])
   (let ([term1-evaled (cur-expand term1 #:local-env env)]
         [term2-evaled (cur-expand term2 #:local-env env)])
    ; (printf "in cur-equal? term1: ~s~n term2: ~s~n" (add-scopes term1-evaled) (add-scopes term2-evaled))
     (type=? term1-evaled term2-evaled)))
 
-(define (cur-constructors-for syn)
+#;(define (cur-constructors-for syn)
   (let ([constructor-ls (syntax-property (cur-expand syn) 'constructors)])
     (if (pair? constructor-ls)
         (syntax->list (car constructor-ls))
         (syntax->list constructor-ls))))
 
-(define (cur-rename new old term) ;bound variables?
+#;(define (cur-rename new old term) ;bound variables?
   (subst new old term))
 
-(define (cur-data-parameters syn)
+#;(define (cur-data-parameters syn)
   (let ([num-params (syntax-property (cur-expand syn) 'num-parameters)])
     (if (pair? num-params)
         (car num-params)
         num-params)))
 
 
-(define (cur-reflect-id syn)
+#;(define (cur-reflect-id syn)
   (syntax-parse syn
     [c:constructor-id
      #'c.name]
@@ -153,10 +154,10 @@
     [x:id
      #'x]))
 
-(define (cur-constructor-telescope-length syn)
+#;(define (cur-constructor-telescope-length syn)
   (length (syntax->list (syntax-property (cur-expand syn) 'constructor-args))))
 
-(define (cur-constructor-recursive-index-ls syn) ;TODO
+#;(define (cur-constructor-recursive-index-ls syn) ;TODO
   (let* ([expanded (cur-expand syn)]
          [args (syntax-property expanded 'constructor-args)]
          [rec-args (syntax-property expanded 'constructor-rec-args)])
@@ -164,7 +165,7 @@
     (syntax->list rec-args)))
 
 
-(define (cur-reflect syn) 
+#;(define (cur-reflect syn) 
   (syntax-parse syn
     #:literals (quote #%expression void #%plain-lambda #%plain-app list )
     #:datum-literals (:)
@@ -193,31 +194,31 @@
      #:do [(when debug-reflect? (displayln (format "app stx class: ~a\n\n" (syntax->datum this-syntax))))]
      #`(cur-app #,(cur-reflect #'fn) #,(cur-reflect #'arg))]))
 
-(define-syntax-class expanded-app #:attributes (rator rand) #:literals (#%plain-app)
+#;(define-syntax-class expanded-app #:attributes (rator rand) #:literals (#%plain-app)
   #:commit
   (pattern (#%plain-app fn arg)
            #:attr rator #'fn
            #:attr rand #'arg))
 
-(define-syntax-class expanded-Π #:attributes (arg τ_arg body)
-  #:commit
-  (pattern (~Π (x : arg-type) body-type)
-           #:attr arg #'x
-           #:attr τ_arg #'arg-type
-           #:attr body #'body-type))
+(define-syntax-class expanded-Π ;#:attributes (arg τ_arg body)
+;  #:commit
+  (pattern (~Π (x : arg-type) body-type)))
+           ;; #:attr arg #'x
+           ;; #:attr τ_arg #'arg-type
+           ;; #:attr body #'body-type))
 
-(define-syntax-class expanded-Type #:attributes (n) #:literals (quote)
+#;(define-syntax-class expanded-Type #:attributes (n) #:literals (quote)
   #:commit
   (pattern (~Type (quote i))
            #:attr n #'i))
 
-(define-syntax-class constructor-id #:attributes (name)
+#;(define-syntax-class constructor-id #:attributes (name)
   #:commit
   (pattern c:id
            #:fail-unless (syntax-property #'c 'c-ref-name) (format "error: ~a has no property 'c-ref-name" #'c)
            #:attr name (syntax-local-introduce (syntax-property #'c 'c-ref-name))))
 
-(define-syntax-class expanded-datatype #:attributes (unexpanded) #:literals (#%plain-app #%expression void list #%plain-lambda)
+#;(define-syntax-class expanded-datatype #:attributes (unexpanded) #:literals (#%plain-app #%expression void list #%plain-lambda)
   #:commit
   (pattern (#%plain-app T (#%plain-lambda () (#%expression void) (plain-#%app list A+i+x ... )))
            #:fail-unless (syntax-property this-syntax 'data-ref-name) (format "error: ~a has no property 'data-ref-name" this-syntax)
@@ -238,19 +239,19 @@
            #:fail-unless (syntax-property this-syntax 'data-ref-name) (format "error: ~a has no property 'data-ref-name" this-syntax)
            #:attr unexpanded (stx-car (syntax-property this-syntax 'data-ref-name))))
 
-(define-syntax-class defined-id #:attributes (name)
+#;(define-syntax-class defined-id #:attributes (name)
   #:commit
   (pattern x:id
            #:fail-unless (syntax-property #'x 'def-ref-name) (format "error: ~a has no property 'def-ref-name" #'x)
            #:attr name (syntax-property #'x 'def-ref-name)))
 
-(define-syntax-class axiom-id #:attributes (name)
+#;(define-syntax-class axiom-id #:attributes (name)
   #:commit
   (pattern x:id
            #:fail-unless (syntax-property #'x 'axiom-ref-name) (format "error: ~a has no property 'axiom-ref-name" #'x)
            #:attr name (syntax-property #'x 'axiom-ref-name)))
 
-(define (cur-expand syn #:local-env [env '()])
+#;(define (cur-expand syn #:local-env [env '()])
  (let cur-expand ([syn syn]
                         [env env])
   (let* ([expanded (turnstile-expand syn #:local-env env)]
@@ -272,7 +273,7 @@
 (transfer-props syn (substs env-ids xs-ls (first es-ls))))
   ))
 
-(define cur-pretty-print
+#;(define cur-pretty-print
   (syntax-parser
     [X:id #'X]
     [ty #:when (has-type-info? #'ty) (resugar-type #'ty)]

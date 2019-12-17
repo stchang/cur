@@ -7,27 +7,27 @@
    (for-label
      (only-in
        (only-meta-in 1 cur)
-          with-env
-          call-with-env
+;          with-env
+;          call-with-env
           cur->datum
-          deprecated-cur-expand
+;          deprecated-cur-expand
           cur-expand
           cur-type-infer
           cur-type-check?
           cur-constructors-for
           cur-data-parameters
-          cur-method-type
+;          cur-method-type
           cur-constructor-recursive-index-ls
           cur-constructor-telescope-length
           cur-normalize
           cur-rename
           cur-reflect-id
-          cur-step
+;          cur-step
           cur-equal?))
    (for-label
      (only-meta-in 0 cur))
    (for-label
-     (only-in racket local-expand syntax? listof -> cons/c any identifier? or/c
+     (only-in racket local-expand syntax? listof #;-> cons/c any identifier? or/c
               symbol? natural-number/c thunk boolean?))
    (for-label (only-meta-in 0 cur/stdlib/bool))
    (for-label (only-meta-in 0 cur/stdlib/nat))

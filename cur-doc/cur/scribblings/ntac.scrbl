@@ -12,7 +12,7 @@
    (only-meta-in 0 cur)
    (only-meta-in 0 cur/stdlib/nat)
    (only-meta-in 0 cur/stdlib/bool)
-   (only-in (only-meta-in 0 cur/stdlib/sugar) ∀ forall ->)
+;   (only-in (only-meta-in 0 cur/stdlib/sugar) ∀ forall ->)
    (only-meta-in 0 cur/stdlib/equality)
    cur/ntac/base cur/ntac/standard
    cur/ntac/rewrite))

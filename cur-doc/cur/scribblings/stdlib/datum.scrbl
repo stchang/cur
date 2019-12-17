@@ -5,7 +5,7 @@
   (for-label cur/stdlib/datum)
   (for-label (only-in racket void? syntax? procedure? -> require only-in for-syntax begin-for-syntax lambda syntax->datum))
   (for-label (only-in syntax/parse syntax-parse))
-  (for-label (only-in (only-meta-in 1 cur/stdlib/nat) nat->unary))
+  (for-label (only-in (only-meta-in 1 cur/stdlib/nat) #;nat->unary))
   (for-label (only-in (only-meta-in 0 cur/stdlib/nat) z))
   scribble/eval)
 
