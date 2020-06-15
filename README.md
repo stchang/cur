@@ -5,7 +5,7 @@ Cur proof assistant, implemented with Turnstile+ framework.
 
 ## install instructions
   - install [Racket 7.4](https://download.racket-lang.org/)
-  - clone and install [Turnstile+](https://github.com/stchang/macrotypes/tree/popl2020-artifact) (`popl2020-artifact` branch)
+  - clone and install [Turnstile+](https://github.com/stchang/macrotypes/tree/popl2020-artifact) (`popl2020-artifact` branch, should also work with `master`)
   - To install Cur: `make install` (from repo root)
   - To check install (run tests): `make test` (from repo root)
   - To remove Cur: `make remove` (from repo root)
