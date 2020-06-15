@@ -14,8 +14,10 @@
  define-datatype
  (for-syntax
   mk-cons+pat-transformer
-  (rename-out [pattern->ctxt pat->ctxt])
-  (rename-out [get-is get-idxs/unexp])))
+  (rename-out [pattern->ctxt pat->ctxt]
+              [get-is get-idxs/unexp]
+              [get-datatype-def get-match-info])
+  has-type-info?))
 
 ;;; Define abbreviation for a typerule that is also usable in pattern position
 ;;; -----------------------------------------------------------
@@ -40,6 +42,15 @@
       ; pattern variable case
       [:id (list (list pat (syntax-property ty 'recur #t)))]))
 
+  (define-generic-type-method get-datatype-def)
+
+  ;; for backwards compat
+  (define has-type-info?
+    (syntax-parser
+      [(_ TY+:id . _)
+       (with-handlers ([exn? (λ _ #f)]) (dict? (eval-syntax #'TY+)))]
+      [_ #f]))
+  
   ;; ty is unexpanded, series of curried mono-applications of type constructor
   (define (get-curried-operator ty)
     (if (id? ty) ty (get-curried-operator (stx-car ty))))
