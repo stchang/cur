@@ -2,11 +2,11 @@
 ;; Proof tree representation and top-level syntax
 
 (require
- "../stdlib/sugar.rkt"
- (only-in racket [define r:define])
- (for-syntax "ctx.rkt"
-             macrotypes/stx-utils
-             racket/match racket/list racket/pretty))
+  "../stdlib/sugar.rkt"
+  (only-in racket [define r:define])
+  (for-syntax "ctx.rkt"
+              macrotypes/stx-utils
+              racket/match racket/list racket/pretty))
 
 (provide
  define-theorem
@@ -18,6 +18,7 @@
   (provide
    ntac-syntax
    current-tracing?
+   proof-step-inspector
 
    qed next
 
@@ -111,8 +112,8 @@
 
   (define (make-nttz pt [ctxt (mk-empty-ctx)])
     (_nttz ctxt pt
-         (λ (last-pt)
-           (make-nttz (make-ntt-done last-pt)))))
+           (λ (last-pt)
+             (make-nttz (make-ntt-done last-pt)))))
 
   (define (to-top tz)
     (if (nttz-done? tz)
@@ -133,7 +134,7 @@
     (define-values (before i+after) (split-at cs i))
     (match-define (cons c_i after) i+after)
     (_nttz context c_i
-         (λ (new-i) (_nttz context (make-ntt-apply a (append before (cons new-i after)) f) up))))
+           (λ (new-i) (_nttz context (make-ntt-apply a (append before (cons new-i after)) f) up))))
 
   (define (nttz-done? tz)
     (ntt-done? (nttz-focus tz)))
@@ -162,14 +163,11 @@
   (define (eval-proof-steps ptz psteps)
     (for/fold ([nttz ptz])
               ([pstep-stx (in-stx-list psteps)])
-        (when (and (current-tracing?)
-                   (not (equal? 'display-focus (syntax-e pstep-stx))))
-          (printf "****************************************\n")
-          (printf "step #~a: running tactic: ~a\n"
-                  (current-tracing?)
-                  (syntax->datum pstep-stx))
-          (current-tracing? (add1 (current-tracing?))))
-        (eval-proof-step nttz pstep-stx)))
+      (when (and (current-tracing?)
+                 (not (equal? 'display-focus (syntax-e pstep-stx))))
+        ((proof-step-inspector) (current-tracing?) pstep-stx nttz)
+        (current-tracing? (add1 (current-tracing?))))
+      (eval-proof-step nttz pstep-stx)))
 
   (define (eval-proof-step nttz pstep-stx)
     ;; XXX Error handling on eval
@@ -207,6 +205,7 @@
     (datum->syntax anchor (syntax->datum syn)))
 
   (define current-tracing? (make-parameter #f)) ; counts (roughly) # tactics evaled
+  (define proof-step-inspector (make-parameter (λ (step-num tactic-stx nttz-pre) (void)))) ; Only called when current-tracing is enabled
 
   ;; `name` is the binder (thm name); `ty` is the surface stx of the thm
   ;; this is needed bc `name` is likely bound to a normalized
@@ -231,12 +230,19 @@
   (syntax-parser
     [(_ ty . pf) (ntac-proc #'ty #'pf)]))
 
+;; For ntac/debug
+(define-for-syntax (debug-proof-inspector step-num tactic-stx nttz-pre)
+  (printf "****************************************\n")
+  (printf "step #~a: running tactic: ~a\n"
+          step-num
+          (syntax->datum tactic-stx)))
+
 ;; For inline ntac
 (define-syntax ntac/debug
   (syntax-parser
     [(_ ty . pf)
-     (begin
-       (current-tracing? 1)
-       (begin0
-         (ntac-proc #'ty #'pf)
-         (current-tracing? #f)))]))
+     (parameterize
+         ([current-tracing? 1]
+          [proof-step-inspector debug-proof-inspector])
+       (ntac-proc #'ty #'pf))]))
+         
