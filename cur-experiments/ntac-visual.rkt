@@ -7,6 +7,7 @@
 
 (ntac Nat
       (fill (exact #'4))
+      display-focus-tree
       display-focus-tree)
 
 #;(ntac (Π (x : Type) (n : x) x)

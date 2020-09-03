@@ -64,7 +64,9 @@
   (parameterize ([current-eventspace es])
     (define frame (new frame% [label "Lorem Ipsum"]))
     (focused-ntt->hierarchical-list frame ntt)
-    (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch nttz))]))
+    (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     (send frame show #t))
     
-  (channel-get ch))
+  (define frame (channel-get ch))
+  (send frame show #f)
+  nttz)
