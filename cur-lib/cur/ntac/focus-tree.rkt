@@ -1,7 +1,7 @@
 #lang s-exp "../main.rkt"
 
 (require "./base.rkt"
-         (for-syntax syntax/parse))
+         (for-syntax syntax/parse racket/async-channel racket/base))
 
 (provide
  (for-syntax display-focus-tree
@@ -45,7 +45,44 @@
   
   (define (display-focus-tree current-nttz)
     (define focused-ntt (nttz->focused-ntt current-nttz))
-    (displayln focused-ntt)
-    current-nttz))
+    (init-ns)
+    (define ch (make-channel))
+    (parameterize ([current-namespace gui-ns])
+      (eval #`(parameterize ([current-eventspace es])
+                (define frame (new frame% [label "Lorem Ipsum"]))
+                (focused-ntt->hierarchical-list frame #,focused-ntt)
+                (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (#,channel-put #,ch #,current-nttz))]))
+                (send frame show #t))))
+    (channel-get ch))
+  
+  (define gui-ns (make-base-namespace))
+  (define ns-initialized #f)
+  (define (init-ns)
+    (unless ns-initialized
+      (parameterize ([current-namespace gui-ns])
+        (eval #'(require racket/gui mrlib/hierlist racket/class))
+        (eval #'(define set-text-mixin
+                  (mixin (hierarchical-list-item<%>)
+                    ((interface () set-text))
+                    (inherit get-editor)
+                    (super-new)
+                    ; set-text: this sets the label of the item
+                    (define/public (set-text str)
+                      (define t (get-editor)) ; a text% object
+                      (send t erase)
+                      (send t insert str)))))
+        (eval #'(define es (make-eventspace)))
+        (eval #'(define (focused-ntt->compound-item parent-item ntt)
+                  (define it (send parent-item new-item set-text-mixin))
+                  (send it set-text "test")
+                  #;(match )))
+        (eval #'(define (focused-ntt->hierarchical-list parent ntt)
+                  (define lst (new hierarchical-list% [parent parent]))
+                  (focused-ntt->compound-item lst ntt)))
+        )
+      (set! ns-initialized #t))))
+              
+                
+
 
 
