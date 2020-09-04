@@ -6,54 +6,73 @@
   (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt"))
 
 (require racket/match racket/gui mrlib/hierlist racket/class)
-  
-(define set-text<%> (interface () set-text))
-(define set-text-mixin
+
+
+(define ntt-hierlist-item<%> (interface ()
+                               (set-text (->m string? void?))
+                               (set-background-color (->m (or/c string? (is-a?/c color%)) void?))))
+
+(define ntt-common-mixin
   (mixin (hierarchical-list-item<%>)
-    (set-text<%>)
+    (ntt-hierlist-item<%>)
     (inherit get-editor)
     (super-new)
     ; set-text: this sets the label of the item
     (define/public (set-text str)
       (define t (get-editor)) ; a text% object
       (send t erase)
-      (send t insert str))))
+      (send t insert str))
+
+    (define/public (set-background-color color)
+      (define delta (make-object style-delta% 'change-nothing))
+      (send delta set-delta-background color)
+      (define editor (get-editor))
+      (send editor change-style delta))))
+
 (define ntt-list-item<%>
-  (interface () set-ntt))
+  (interface ())) ; TODO selection handler injection?
+
 (define ntt-exact-mixin
-  (mixin (hierarchical-list-item<%> set-text<%>) (ntt-list-item<%>)
-    (inherit set-text)
+  (mixin (hierarchical-list-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
+    (inherit set-text set-background-color)
     (super-new)
-    (define/public (set-ntt ntt)
-      (define ty (ntt-goal ntt))
-      (define val (ntt-exact-term ntt))
-      ;(match-define (ntt-exact ty _ val) ntt) ; WHY doesn't this work?
+    (define/public (init-ntt-exact ty val)
+      (set-background-color "lightgreen")
       (set-text (string-append (stx->str val) " : " (stx->str ty))))))
+
 (define ntt-focus-mixin
-  (mixin (hierarchical-list-compound-item<%> set-text<%>) (ntt-list-item<%>)
-    (inherit set-text)
+  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
+    (inherit set-text set-background-color)
     (super-new)
-    (define/public (set-ntt ntt)
-      (define subterm (ntt-focus-subtree ntt))
-      ; TODO Decide which item to use based off of the subterm
+    (define/public (init-ntt-focus subterm)
+      (set-background-color "lightblue") ; Needs to be before inserting text- setting background color is like highlighting
       (set-text "FOCUSED HERE")
-      (define sub-item (send this new-list (compose ntt-done-mixin set-text-mixin)))
-      (send sub-item set-ntt subterm))))
+      (send this open) ; The subterm can't open before the parent does
+      (focused-ntt->compound-item this subterm))))
+
 (define ntt-done-mixin
-  (mixin (hierarchical-list-compound-item<%> set-text<%>) (ntt-list-item<%>)
-    (inherit set-text)
+  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
+    (inherit set-text set-background-color)
     (super-new)
-    (define/public (set-ntt ntt)
-      (define subterm (ntt-done-subtree ntt))
-      ; TODO Decide which item to use based off of the subterm
+    (define/public (init-ntt-done subterm)
       (set-text "DONE")
-      (define sub-item (send this new-item (compose ntt-exact-mixin set-text-mixin)))
-      (send sub-item set-ntt subterm))))
+      (send this open)
+      (focused-ntt->compound-item this subterm))))
+
+(define-syntax-rule (ntt-init-match parent-item ntt
+                                    [match-clause list-type mixin-type (method-name args ...)] ...)
+  (match ntt
+    [match-clause (begin
+                    (define sub-item (send parent-item list-type (compose mixin-type ntt-common-mixin)))
+                    (send sub-item method-name args ...))] ...))
+
 (define es (make-eventspace))
 (define (focused-ntt->compound-item parent-item ntt)
-  (define it (send parent-item new-list (compose ntt-focus-mixin set-text-mixin)))
-  (send it set-ntt ntt)
-  #;(match ))
+  (ntt-init-match parent-item ntt
+                  [(ntt-exact _ ty val) new-item ntt-exact-mixin (init-ntt-exact ty val)]
+                  [(ntt-focus _ _ subtree) new-list ntt-focus-mixin (init-ntt-focus subtree)]
+                  [(ntt-done _ _ subtree) new-list ntt-done-mixin (init-ntt-done subtree)]))
+
 (define (focused-ntt->hierarchical-list parent ntt)
   (define lst (new hierarchical-list% [parent parent]))
   (focused-ntt->compound-item lst ntt))
