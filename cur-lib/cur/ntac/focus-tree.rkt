@@ -41,11 +41,5 @@
   
   (define (display-focus-tree current-nttz)
     (define focused-ntt (nttz->focused-ntt current-nttz))
-    (eval #`(require "../cur-lib/cur/ntac/gui-visual/gui.rkt")) ; WTF
+    (eval #`(require cur/ntac/gui-visual/gui))
     (eval #`(test-frame #,current-nttz #,focused-ntt))))
-
-
-  
-  
-
-              
