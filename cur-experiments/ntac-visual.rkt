@@ -6,6 +6,7 @@
  cur/stdlib/nat)
 
 (ntac Nat
+      display-focus-tree
       (fill (exact #'4))
       display-focus-tree)
 
