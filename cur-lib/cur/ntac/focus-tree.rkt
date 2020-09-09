@@ -2,8 +2,8 @@
 ;#lang s-exp "../main.rkt"
 
 (require ; "./base.rkt"
-         "./gui-visual/ntt-focus.rkt"
-         (for-syntax syntax/parse racket/base))
+  "./gui-visual/ntt-focus.rkt"
+  (for-syntax syntax/parse racket/base))
 
 (provide
  (for-syntax display-focus-tree
@@ -41,5 +41,7 @@
   
   (define (display-focus-tree current-nttz)
     (define focused-ntt (nttz->focused-ntt current-nttz))
-    (eval #`(require cur/ntac/gui-visual/gui))
+    (with-handlers ([exn:fail?
+                     (λ (e) (error 'display-focus-tree "tactic is only supported when running from command-line"))])
+      (eval #`(require cur/ntac/gui-visual/gui)))
     (eval #`(test-frame #,current-nttz #,focused-ntt))))
