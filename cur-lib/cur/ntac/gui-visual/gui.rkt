@@ -12,6 +12,7 @@
                                (set-text (->m string? void?))
                                (set-background-color (->m (or/c string? (is-a?/c color%)) void?))))
 
+; Many thanks to https://docs.racket-lang.org/mrlib/Hierarchical_List_Control.html for the sample code
 (define ntt-common-mixin
   (mixin (hierarchical-list-item<%>)
     (ntt-hierlist-item<%>)
