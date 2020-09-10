@@ -46,11 +46,8 @@
 (define ntt-common-compound-mixin
   (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>)
     (ntt-hierlist-compound-item<%>)
-    (inherit-field is-focus?)
     (inherit open close)
     (super-new)
-
-    (send this open)
 
     (field [child-nodes '()])
     
@@ -80,13 +77,13 @@
       (set-text (string-append (stx->str val) " : " (stx->str ty))))))
 
 (define ntt-done-mixin
-  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
-    (inherit set-text set-background-color)
+  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%> ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
+    (inherit set-text set-background-color add-child-ntt)
     (super-new)
     (define/public (init-ntt-done subterm)
       (set-text "Top Level")
       (send this open) ; The subterm can't open before the parent does
-      (focused-ntt->compound-item this subterm))))
+      (add-child-ntt subterm))))
 
 (define ntt-hole-mixin
   (mixin (hierarchical-list-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
@@ -97,10 +94,13 @@
       (set-text (stx->str ty)))))
 
 (define-syntax-rule (ntt-init-match parent-item ntt focused?
-                                    [match-clause (list-type mixin-type) (method-name args ...)] ...)
+                                    [match-clause is-compound mixin-type (method-name args ...)] ...)
   (match ntt
     [match-clause (begin
-                    (define sub-item (send parent-item list-type (compose mixin-type (ntt-common-mixin focused?))))
+                    (define sub-item
+                      (if is-compound
+                          (send parent-item new-list (compose mixin-type ntt-common-compound-mixin (ntt-common-mixin focused?)))
+                          (send parent-item new-item (compose mixin-type (ntt-common-mixin focused?)))))
                     (send sub-item method-name args ...))] ...))
 
 (define es (make-eventspace))
@@ -110,9 +110,9 @@
         (values #t (ntt-focus-subtree ntt))
         (values #f ntt)))
   (ntt-init-match parent-item ntt-unfocused focused?
-                  [(ntt-exact _ ty val) (new-item ntt-exact-mixin) (init-ntt-exact ty val)]
-                  [(ntt-done _ _ subtree) (new-list ntt-done-mixin) (init-ntt-done subtree)]
-                  [(ntt-hole _ ty) (new-item ntt-hole-mixin) (init-ntt-hole ty)]))
+                  [(ntt-exact _ ty val) #f ntt-exact-mixin (init-ntt-exact ty val)]
+                  [(ntt-done _ _ subtree) #t ntt-done-mixin (init-ntt-done subtree)]
+                  [(ntt-hole _ ty) #f ntt-hole-mixin (init-ntt-hole ty)]))
 
 (define (focused-ntt->hierarchical-list parent ntt)
   (define lst (new hierarchical-list% [parent parent]))
