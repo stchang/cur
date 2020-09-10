@@ -66,10 +66,10 @@
     
 
 (define ntt-list-item<%>
-  (interface ())) ; TODO selection handler injection?
+  (interface (ntt-hierlist-item<%>))) ; TODO selection handler injection?
 
 (define ntt-exact-mixin
-  (mixin (hierarchical-list-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
+  (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
     (inherit set-text set-background-color)
     (super-new)
     (define/public (init-ntt-exact ty val)
@@ -77,7 +77,7 @@
       (set-text (string-append (stx->str val) " : " (stx->str ty))))))
 
 (define ntt-done-mixin
-  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%> ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
+  (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
     (inherit set-text set-background-color add-child-ntt)
     (super-new)
     (define/public (init-ntt-done subterm)
@@ -86,7 +86,7 @@
       (add-child-ntt subterm))))
 
 (define ntt-hole-mixin
-  (mixin (hierarchical-list-item<%> ntt-hierlist-item<%>) (ntt-list-item<%>)
+  (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
     (inherit set-text set-background-color)
     (super-new)
     (define/public (init-ntt-hole ty)
