@@ -8,12 +8,15 @@
 (require racket/match racket/gui mrlib/hierlist racket/class)
 
 
-(define ntt-hierlist-item<%> (interface ()
-                               (set-text (->m string? void?))
-                               (set-background-color (->m (or/c string? (is-a?/c color%)) void?)) 
-                               (on-path-to-focus? (->m boolean?))))
+(define ntt-hierlist-item<%> (interface (hierarchical-list-item<%>)
+                               (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
+                               (set-background-color (->m (or/c string? (is-a?/c color%)) void?)) ; Call this before setting text
+                               (open-on-path-to-focus (->m boolean?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
+                               (open-all (->m void?)) ; Recursively open all nodes
+                               ))
 
-(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%>)))
+(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%> hierarchical-list-compound-item<%>)
+  (add-child-ntt (->m ntt? (is-a?/c ntt-hierlist-item<%>)))))
 
 ; Many thanks to https://docs.racket-lang.org/mrlib/Hierarchical_List_Control.html for the sample code
 (define (ntt-common-mixin is-focused?)
@@ -22,8 +25,10 @@
     (inherit get-editor)
     (super-new)
 
-    (define/public (on-path-to-focus?)
+    (define/public (open-on-path-to-focus)
       is-focused?)
+
+    (define/public (open-all) (void))
     
     ; set-text: this sets the label of the item
     (define/public (set-text str)
@@ -42,8 +47,25 @@
   (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>)
     (ntt-hierlist-compound-item<%>)
     (inherit-field is-focus?)
-    (inherit on-path-to-focus?)
-    (super-new)))
+    (inherit open close)
+    (super-new)
+
+    (send this open)
+
+    (field [child-nodes '()])
+    
+    (define/override (open-on-path-to-focus)
+      (if (ormap (λ (child) (send child open-on-path-to-focus)) child-nodes)
+          (open)
+          (close)))
+
+    (define/override (open-all)
+      (open)
+      (map (λ (child) (send child open-all))))
+
+    (define/public (add-child-ntt ntt)
+      (define ch-node (focused-ntt->compound-item this ntt))
+      (set! child-nodes (cons ch-node child-nodes)))))
     
 
 (define ntt-list-item<%>
