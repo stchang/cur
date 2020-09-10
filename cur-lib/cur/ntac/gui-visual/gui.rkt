@@ -93,6 +93,13 @@
       (set-background-color "MistyRose")
       (set-text (stx->str ty)))))
 
+; TODO finish this
+#;(define ntt-context-mixin
+  (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
+    (inherit set-text set-background-color add-child-ntt)
+    (super-new)
+    (define/public (init-ntt-context ))))
+
 (define-syntax-rule (ntt-init-match parent-item ntt focused?
                                     [match-clause is-compound mixin-type (method-name args ...)] ...)
   (match ntt
