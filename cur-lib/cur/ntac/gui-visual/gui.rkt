@@ -112,8 +112,8 @@
 
 (define es (make-eventspace))
 (define (focused-ntt->compound-item parent-item ntt)
-  (define-values (focused? ntt-unfocused)
-    (if (ntt-focus? ntt)
+  (define-values (focused? ntt-unfocused) (values #t ntt)
+    #;(if (ntt-focus? ntt)
         (values #t (ntt-focus-subtree ntt))
         (values #f ntt)))
   (ntt-init-match parent-item ntt-unfocused focused?

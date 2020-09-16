@@ -36,7 +36,7 @@
 
    ;; proof tree zipper
    (struct-out nttz)
-   make-nttz nttz-up nttz-down-context nttz-down-apply nttz-done?
+   make-nttz nttz-up nttz-down-context nttz-down-apply nttz-down-done nttz-done?
 
    num-holes
    num-holes/z
@@ -122,6 +122,11 @@
           (to-top (nttz-up tz)))))
   (define (nttz-up nttz)
     ((nttz-prev nttz) (nttz-focus nttz)))
+
+  (define (nttz-down-done tz)
+    (match-define (nttz context foc up) tz)
+    (match-define (ntt-done _ _ k) foc)
+    (_nttz context k (λ (new-k) (_nttz context (make-ntt-done new-k) up))))
 
   (define (nttz-down-context tz)
     (match-define (nttz context foc up) tz)
