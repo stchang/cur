@@ -14,7 +14,8 @@
 
   
   (define (display-focus-tree current-nttz)
-    (define focused-ntt '() #;(nttz->focused-ntt current-nttz))
+    (define focused-ntt (nttz->ntt-ext current-nttz))
+    (displayln focused-ntt)
     (with-handlers ([exn:fail?
                      (λ (e) (error 'display-focus-tree "tactic is only supported when running from command-line"))])
       (eval #`(require racket/gui/base)))

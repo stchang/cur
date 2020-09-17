@@ -7,98 +7,115 @@
 
 (require racket/match racket/gui mrlib/hierlist racket/class)
 
-
-(define ntt-hierlist-item<%> (interface (hierarchical-list-item<%>)
-                               (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
-                               (set-background-color (->m (or/c string? (is-a?/c color%)) void?)) ; Call this before setting text
-                               (open-on-path-to-focus (->m boolean?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
+(define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
+                                      (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
+                                      (set-background-color (->m (or/c string? (is-a?/c color%)) void?)))) ; Call this before setting text
+                                      
+(define ntt-hierlist-item<%> (interface (ntt-hierlist-common-item<%>)                            
+                               (open-on-path-to-focus (->m void?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
                                (open-all (->m void?)) ; Recursively open all nodes
-                               ))
+                               (initialize (->m void?))))
 
-(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%> hierarchical-list-compound-item<%>)
-  (add-child-ntt (->m ntt? (is-a?/c ntt-hierlist-item<%>)))))
+#;(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%> hierarchical-list-compound-item<%>)
+                                          (add-child-ntt (->m ntt? (is-a?/c ntt-hierlist-item<%>)))))
 
 ; Many thanks to https://docs.racket-lang.org/mrlib/Hierarchical_List_Control.html for the sample code
-(define (ntt-common-mixin is-focused?)
+(define (ntt-common-mixin ntt-ex)
   (mixin (hierarchical-list-item<%>)
     (ntt-hierlist-item<%>)
     (inherit get-editor)
     (super-new)
-
-    (define/public (open-on-path-to-focus)
-      is-focused?)
-
-    (define/public (open-all) (void))
     
     ; set-text: this sets the label of the item
     (define/public (set-text str)
       (define t (get-editor)) ; a text% object
       (send t erase)
-      (define focus-str (if is-focused? (string-append "(Focused) " str) str))
+      (define focus-str (if (ntt-ext-is-focus? ntt-ex) (string-append "(Focused) " str) str))
       (send t insert focus-str))
 
+    ; Must be called before setting the text, acts like the text background function in word
     (define/public (set-background-color color)
       (define delta (make-object style-delta% 'change-nothing))
       (send delta set-delta-background color)
       (define editor (get-editor))
       (send editor change-style delta))))
 
-(define ntt-common-compound-mixin
-  (mixin (hierarchical-list-compound-item<%> ntt-hierlist-item<%>)
-    (ntt-hierlist-compound-item<%>)
-    (inherit open close)
-    (super-new)
+(define (ntt-common-node-mixin ntt-ex-node)
+  (compose
+   (mixin (hierarchical-list-compound-item<%> ntt-hierlist-common-item<%>)
+     (ntt-hierlist-item<%>)
+     (inherit open close)
+     (super-new)
 
-    (field [child-nodes '()])
+     (field [child-nodes '()])
     
-    (define/override (open-on-path-to-focus)
-      (if (ormap (λ (child) (send child open-on-path-to-focus)) child-nodes)
-          (open)
-          (close)))
+     (define/public (open-on-path-to-focus)
+       (if (ntt-ext-on-path-to-focus? ntt-ex-node)
+           (open)
+           (close))
+       (for [(child child-nodes)]
+         (send child open-on-path-to-focus)))
 
-    (define/override (open-all)
-      (open)
-      (map (λ (child) (send child open-all))))
+     (define/public (open-all)
+       (open)
+       (map (λ (child) (send child open-all))))
 
-    (define/public (add-child-ntt ntt)
-      (define ch-node (focused-ntt->compound-item this ntt))
-      (set! child-nodes (cons ch-node child-nodes)))))
-    
+     (define/public (initialize)
+       (define ch-node (focused-ntt->compound-item this ntt))
+       (set! child-nodes (cons ch-node child-nodes))))
+   (ntt-common-mixin ntt-ex-node)))
+
+(define (ntt-common-leaf-mixin ntt-ex-leaf)
+  (compose 
+   (mixin (hierarchical-list-item<%> ntt-hierlist-common-item<%>)
+     (ntt-hierlist-item<%>)
+     (inherit open close)
+     (super-new)
+
+     (define/override (open-on-path-to-focus)
+       (void))
+
+     (define/override (open-all)
+       (void))
+
+     (define/public (initialize)
+       (void)))
+   (ntt-common-mixin ntt-ex-leaf)))
 
 (define ntt-list-item<%>
   (interface (ntt-hierlist-item<%>))) ; TODO selection handler injection?
 
-(define ntt-exact-mixin
-  (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
-    (inherit set-text set-background-color)
-    (super-new)
-    (define/public (init-ntt-exact ty val)
-      (set-background-color "MediumGoldenrod"); Needs to be before inserting text- setting background color is like highlighting
-      (set-text (string-append (stx->str val) " : " (stx->str ty))))))
+#;(define ntt-exact-mixin
+    (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+      (inherit set-text set-background-color)
+      (super-new)
+      (define/public (init-ntt-exact ty val)
+        (set-background-color "MediumGoldenrod"); Needs to be before inserting text- setting background color is like highlighting
+        (set-text (string-append (stx->str val) " : " (stx->str ty))))))
 
-(define ntt-done-mixin
-  (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
-    (inherit set-text set-background-color add-child-ntt)
-    (super-new)
-    (define/public (init-ntt-done subterm)
-      (set-text "Top Level")
-      (send this open) ; The subterm can't open before the parent does
-      (add-child-ntt subterm))))
+#;(define ntt-done-mixin
+    (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
+      (inherit set-text set-background-color add-child-ntt)
+      (super-new)
+      (define/public (init-ntt-done subterm)
+        (set-text "Top Level")
+        (send this open) ; The subterm can't open before the parent does
+        (add-child-ntt subterm))))
 
-(define ntt-hole-mixin
-  (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
-    (inherit set-text set-background-color)
-    (super-new)
-    (define/public (init-ntt-hole ty)
-      (set-background-color "MistyRose")
-      (set-text (stx->str ty)))))
+#;(define ntt-hole-mixin
+    (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+      (inherit set-text set-background-color)
+      (super-new)
+      (define/public (init-ntt-hole ty)
+        (set-background-color "MistyRose")
+        (set-text (stx->str ty)))))
 
 ; TODO finish this
 #;(define ntt-context-mixin
-  (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
-    (inherit set-text set-background-color add-child-ntt)
-    (super-new)
-    (define/public (init-ntt-context ))))
+    (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
+      (inherit set-text set-background-color add-child-ntt)
+      (super-new)
+      (define/public (init-ntt-context ))))
 
 (define-syntax-rule (ntt-init-match parent-item ntt focused?
                                     [match-clause is-compound mixin-type (method-name args ...)] ...)
@@ -114,8 +131,8 @@
 (define (focused-ntt->compound-item parent-item ntt)
   (define-values (focused? ntt-unfocused) (values #t ntt)
     #;(if (ntt-focus? ntt)
-        (values #t (ntt-focus-subtree ntt))
-        (values #f ntt)))
+          (values #t (ntt-focus-subtree ntt))
+          (values #f ntt)))
   (ntt-init-match parent-item ntt-unfocused focused?
                   [(ntt-exact _ ty val) #f ntt-exact-mixin (init-ntt-exact ty val)]
                   [(ntt-done _ _ subtree) #t ntt-done-mixin (init-ntt-done subtree)]

@@ -17,8 +17,8 @@
 
   ; A ntt-ext is one of the following, it is sort of a combination of a ntt and nttz.
   ; It has a lot of cached information about where it is in the tree, along with if it is on the path to the focus
-  (struct ntt-ext-leaf ntt-ext () #:constructor-name _ntt-ext-leaf)
-  (struct ntt-ext-node ntt-ext (subtrees) #:constructor-name _ntt-ext-node)
+  (struct ntt-ext-leaf ntt-ext () #:transparent #:constructor-name _ntt-ext-leaf)
+  (struct ntt-ext-node ntt-ext (subtrees) #:transparent #:constructor-name _ntt-ext-node)
 
   (define (make-ntt-ext-leaf focused? path-inv this-nttz)
     (_ntt-ext-leaf focused? focused? (reverse path-inv) this-nttz))
