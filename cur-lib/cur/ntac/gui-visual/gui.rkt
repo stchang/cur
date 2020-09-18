@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide focused-ntt->hierarchical-list es test-frame)
+(provide ntt-ext->hierarchical-list es test-frame)
 
 (require
   (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt"))
@@ -22,7 +22,7 @@
 ; Many thanks to https://docs.racket-lang.org/mrlib/Hierarchical_List_Control.html for the sample code
 (define (ntt-common-mixin ntt-ex)
   (mixin (hierarchical-list-item<%>)
-    (ntt-hierlist-item<%>)
+    (ntt-hierlist-common-item<%>)
     (inherit get-editor)
     (super-new)
     
@@ -47,6 +47,8 @@
      (inherit open close)
      (super-new)
 
+     (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ex-node)
+
      (field [child-nodes '()])
     
      (define/public (open-on-path-to-focus)
@@ -61,21 +63,22 @@
        (map (λ (child) (send child open-all))))
 
      (define/public (initialize)
-       (define ch-node (focused-ntt->compound-item this ntt))
-       (set! child-nodes (cons ch-node child-nodes))))
+       (open)  ; The subterm can't open before the parent does
+       (for [(subtree subtrees)]
+         (define ch-node (ntt-ext->compound-item this subtree))
+         (set! child-nodes (cons ch-node child-nodes)))))
    (ntt-common-mixin ntt-ex-node)))
 
 (define (ntt-common-leaf-mixin ntt-ex-leaf)
   (compose 
    (mixin (hierarchical-list-item<%> ntt-hierlist-common-item<%>)
      (ntt-hierlist-item<%>)
-     (inherit open close)
      (super-new)
 
-     (define/override (open-on-path-to-focus)
+     (define/public (open-on-path-to-focus)
        (void))
 
-     (define/override (open-all)
+     (define/public (open-all)
        (void))
 
      (define/public (initialize)
@@ -85,69 +88,97 @@
 (define ntt-list-item<%>
   (interface (ntt-hierlist-item<%>))) ; TODO selection handler injection?
 
-#;(define ntt-exact-mixin
-    (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
-      (inherit set-text set-background-color)
-      (super-new)
-      (define/public (init-ntt-exact ty val)
-        (set-background-color "MediumGoldenrod"); Needs to be before inserting text- setting background color is like highlighting
-        (set-text (string-append (stx->str val) " : " (stx->str ty))))))
+(define (ntt-exact-mixin ntt-ext)
+  (compose
+   (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+     (inherit set-text set-background-color)
+     (super-new)
+     (match-define (ntt-ext-leaf is-focus? on-path-to-focus? path-to-here this-nttz) ntt-ext)
+     (match-define (nttz _ ntt _) this-nttz)
+     (match-define (ntt-exact _ ty val) ntt)
+     (define/override (initialize)
+       (super initialize)
+       (set-background-color "MediumGoldenrod"); Needs to be before inserting text- setting background color is like highlighting
+       (set-text (string-append (stx->str val) " : " (stx->str ty)))))
+   (ntt-common-leaf-mixin ntt-ext)))
 
-#;(define ntt-done-mixin
-    (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
-      (inherit set-text set-background-color add-child-ntt)
-      (super-new)
-      (define/public (init-ntt-done subterm)
-        (set-text "Top Level")
-        (send this open) ; The subterm can't open before the parent does
-        (add-child-ntt subterm))))
+(define (ntt-done-mixin ntt-ext)
+  (compose
+   (mixin (ntt-hierlist-item<%> hierarchical-list-compound-item<%>) (ntt-list-item<%>)
+     (inherit set-text set-background-color)
+     (super-new)
+     (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ext)
+     (match-define (nttz _ ntt _) this-nttz)
+     (match-define (ntt-done _ ty subterm) ntt)
+     (define/override (initialize)
+       (super initialize)
+       (set-text "Top Level")))
+   (ntt-common-node-mixin ntt-ext)))
 
-#;(define ntt-hole-mixin
-    (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
-      (inherit set-text set-background-color)
-      (super-new)
-      (define/public (init-ntt-hole ty)
-        (set-background-color "MistyRose")
-        (set-text (stx->str ty)))))
+(define (ntt-hole-mixin ntt-ext)
+  (compose
+   (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+     (inherit set-text set-background-color)
+     (super-new)
+     (match-define (ntt-ext-leaf is-focus? on-path-to-focus? path-to-here this-nttz) ntt-ext)
+     (match-define (nttz _ ntt _) this-nttz)
+     (match-define (ntt-hole _ ty) ntt)
+     (define/override (initialize)
+       (super initialize)
+       (set-background-color "MistyRose")
+       (set-text (stx->str ty))))
+   (ntt-common-leaf-mixin ntt-ext)))
 
-; TODO finish this
-#;(define ntt-context-mixin
-    (mixin (ntt-hierlist-compound-item<%>) (ntt-list-item<%>)
-      (inherit set-text set-background-color add-child-ntt)
-      (super-new)
-      (define/public (init-ntt-context ))))
 
-(define-syntax-rule (ntt-init-match parent-item ntt focused?
-                                    [match-clause is-compound mixin-type (method-name args ...)] ...)
-  (match ntt
-    [match-clause (begin
-                    (define sub-item
-                      (if is-compound
-                          (send parent-item new-list (compose mixin-type ntt-common-compound-mixin (ntt-common-mixin focused?)))
-                          (send parent-item new-item (compose mixin-type (ntt-common-mixin focused?)))))
-                    (send sub-item method-name args ...))] ...))
+(define (ntt-context-mixin ntt-ext)
+  (compose
+   (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+     (inherit set-text set-background-color)
+     (super-new)
+     (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ext)
+     (match-define (nttz _ ntt _) this-nttz)
+     (match-define (ntt-context _ _ _ _) ntt)
+     (define/override (initialize)
+       (super initialize)
+       (set-text "Context"))) ; TODO What context?
+   (ntt-common-node-mixin ntt-ext)))
+
+(define (ntt-apply-mixin ntt-ext)
+  (compose
+   (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
+     (inherit set-text set-background-color)
+     (super-new)
+     (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ext)
+     (match-define (nttz _ ntt _) this-nttz)
+     (match-define (ntt-apply _ _ _ _) ntt)
+     (define/override (initialize)
+       (super initialize)
+       (set-text "Apply")))
+   (ntt-common-node-mixin ntt-ext)))
 
 (define es (make-eventspace))
-(define (focused-ntt->compound-item parent-item ntt)
-  (define-values (focused? ntt-unfocused) (values #t ntt)
-    #;(if (ntt-focus? ntt)
-          (values #t (ntt-focus-subtree ntt))
-          (values #f ntt)))
-  (ntt-init-match parent-item ntt-unfocused focused?
-                  [(ntt-exact _ ty val) #f ntt-exact-mixin (init-ntt-exact ty val)]
-                  [(ntt-done _ _ subtree) #t ntt-done-mixin (init-ntt-done subtree)]
-                  [(ntt-hole _ ty) #f ntt-hole-mixin (init-ntt-hole ty)]))
+(define (ntt-ext->compound-item parent-item ntt-ext)
+  (define this-nttz (ntt-ext-this-nttz ntt-ext))
+  (match-define (nttz _ foc _) this-nttz)
+  (define item
+    (match foc
+      [(ntt-exact _ _ _) (send parent-item new-item (ntt-exact-mixin ntt-ext))]
+      [(ntt-done _ _ _) (send parent-item new-list (ntt-done-mixin ntt-ext))]
+      [(ntt-hole _ _) (send parent-item new-item (ntt-hole-mixin ntt-ext))]
+      [(ntt-context _ _ _ _) (send parent-item new-list (ntt-context-mixin ntt-ext))]
+      [(ntt-apply _ _ _ _) (send parent-item new-list (ntt-apply-mixin ntt-ext))]))
+  (send item initialize))
 
-(define (focused-ntt->hierarchical-list parent ntt)
+(define (ntt-ext->hierarchical-list parent ntt-ext)
   (define lst (new hierarchical-list% [parent parent]))
-  (focused-ntt->compound-item lst ntt))
+  (ntt-ext->compound-item lst ntt-ext))
 
-(define (test-frame nttz ntt)
+(define (test-frame nttz ntt-ext)
   (define ch (make-channel))
     
   (parameterize ([current-eventspace es])
     (define frame (new frame% [label "Lorem Ipsum"]))
-    (focused-ntt->hierarchical-list frame ntt)
+    (ntt-ext->hierarchical-list frame ntt-ext)
     (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     (send frame show #t))
     

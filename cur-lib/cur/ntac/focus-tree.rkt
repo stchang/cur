@@ -6,18 +6,13 @@
   (for-syntax syntax/parse racket/base))
 
 (provide
- (for-syntax display-focus-tree
-             ))
+ (for-syntax display-focus-tree))
 
-(begin-for-syntax
- 
-
-  
+(begin-for-syntax 
   (define (display-focus-tree current-nttz)
-    (define focused-ntt (nttz->ntt-ext current-nttz))
-    (displayln focused-ntt)
+    (define ntt-ext (nttz->ntt-ext current-nttz))
     (with-handlers ([exn:fail?
                      (λ (e) (error 'display-focus-tree "tactic is only supported when running from command-line"))])
       (eval #`(require racket/gui/base)))
     (eval #`(require cur/ntac/gui-visual/gui))
-    (eval #`(test-frame #,current-nttz #,focused-ntt))))
+    (eval #`(test-frame #,current-nttz #,ntt-ext))))

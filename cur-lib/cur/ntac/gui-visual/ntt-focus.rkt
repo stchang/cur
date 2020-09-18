@@ -36,8 +36,8 @@
   (define (ntt+focus->ntt-ext top-ntt focus)
     (let loop ([current-nttz (make-nttz top-ntt)] ; Do we need ctx?
                [current-path-inv '()])
-      (define focused? (eq? ntt focus))
       (match-define (nttz _ current-ntt _) current-nttz)
+      (define focused? (eq? current-ntt focus))
       (match current-ntt
         [(ntt-done _ _ sub)
          (define sub-ext (loop (nttz-down-done current-nttz) (cons (path-down-done) current-path-inv)))
