@@ -37,6 +37,7 @@
          ctx-fold
          ctx-splitf
          ctx-splitf/ty/outerin
+         ctx-partitionf
          ctx-partition/ty
          ctx-append
          ctx-lookup
@@ -49,7 +50,8 @@
 
          ctx->stx
          ctx-tys->stx
-         ctx->env)
+         ctx->env
+         ctx-difference)
 
 (require racket/list
          syntax/stx)
@@ -173,6 +175,17 @@
                            (λ (item) (p? (ctxitem-type item))))])
     (values (ctx (reverse outer)) (ctx (reverse inner)))))
 
+;; ctx-partitionf : NtacCtx (-> CtxItem Bool) -> NtacCtx NtacCtx
+;; splits given ctxt into two partitions using predicate p? on ctxitem
+;; - unlike ctx-splitf, which starts with innermost scope,
+;;   this starts with outermost scope first
+;; - unlike ctx-splitf/ty/outerin, which stops at first ctxitem satisfying p?,
+;;   this always checks every ctx item
+(define (ctx-partitionf ctxt p?)
+  (let-values ([(yes no)
+                (partition p? (reverse (ctx-items ctxt)))])
+    (values (ctx (reverse yes)) (ctx (reverse no)))))
+
 ;; ctx-partition/ty : NtacCtx (-> Type Bool) -> NtacCtx NtacCtx
 ;; splits given ctxt into two partitions using predicate p? on ctxitem type
 ;; - unlike ctx-splitf, which starts with innermost scope,
@@ -180,10 +193,7 @@
 ;; - unlike ctx-splitf/ty/outerin, which stops at first ctxitem satisfying p?,
 ;;   this always checks every ctx item
 (define (ctx-partition/ty ctxt p?)
-  (let-values ([(yes no)
-                (partition (λ (item) (p? (ctxitem-type item)))
-                           (reverse (ctx-items ctxt)))])
-    (values (ctx (reverse yes)) (ctx (reverse no)))))
+  (ctx-partitionf ctxt (λ (ctx-item) (p? (ctxitem-type ctx-item)))))
 
 ;; appends zero or more NtacCtxs together
 ;; - first arg is "inner" scope
@@ -238,3 +248,14 @@
       [x:id #:do[(define y (findf (λ (id) (datum=? id #'x)) ids))] (or y #'x)]
       [(x ...) (datum->syntax stx (stx-map L #'(x ...)) stx stx)]
       [_ stx])))
+
+;; NtacCtx NtacCtx -> NtacCtx
+;; Find all context items that exist in the first argument but not the second
+(define (ctx-difference base-ctx subtr-ctx)
+  (define-values (result _)
+    (ctx-partitionf base-ctx
+                    (λ (item)
+                      (define id (ctxitem-id item))
+                      (define item-in-subtr (ctx-lookup subtr-ctx id))
+                      (not item-in-subtr))))
+  result)

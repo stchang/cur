@@ -3,9 +3,9 @@
 (provide ntt-ext->hierarchical-list es test-frame)
 
 (require
-  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt"))
+  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt"))
 
-(require racket/match racket/gui mrlib/hierlist racket/class)
+(require racket/match racket/gui mrlib/hierlist racket/class "../ctx.rkt")
 
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
@@ -136,9 +136,15 @@
      (inherit set-text set-background-color)
      (super-new)
      (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ext)
-     (match-define (nttz _ ntt _) this-nttz)
-     (match-define (ntt-context _ _ _ _) ntt)
+     (match-define (nttz this-ctxt ntt up) this-nttz)
+     
+     (match-define (ntt-context _ _ transformer _) ntt)
+     (match-define child-ctxt (transformer this-ctxt))
+
+     (define new-ctx-items (ctx-difference child-ctxt this-ctxt))
      (define/override (initialize)
+       (displayln path-to-here)   
+       (displayln new-ctx-items)
        (super initialize)
        (set-text "Context"))) ; TODO What context?
    (ntt-common-node-mixin ntt-ext)))
