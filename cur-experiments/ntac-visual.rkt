@@ -11,7 +11,6 @@
       display-focus-tree)
 
 (ntac (Π (x : Type) (n : x) x)
-      display-focus-tree
       (by-intros x n)
       display-focus-tree
       (by-assumption)

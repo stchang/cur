@@ -143,10 +143,8 @@
 
      (define new-ctx-items (ctx-difference child-ctxt this-ctxt))
      (define/override (initialize)
-       (displayln path-to-here)   
-       (displayln new-ctx-items)
        (super initialize)
-       (set-text "Context"))) ; TODO What context?
+       (set-text  (string-append "Context: " (ctx->str new-ctx-items))))) ; TODO What context?
    (ntt-common-node-mixin ntt-ext)))
 
 (define (ntt-apply-mixin ntt-ext)
@@ -162,7 +160,7 @@
        (set-text "Apply")))
    (ntt-common-node-mixin ntt-ext)))
 
-(define es (make-eventspace))
+; Add a ntt to a hierarchical list. Parent-item is a hierarchical-list% or hierarchical-list-compound-item<%>
 (define (ntt-ext->compound-item parent-item ntt-ext)
   (define this-nttz (ntt-ext-this-nttz ntt-ext))
   (match-define (nttz _ foc _) this-nttz)
@@ -175,15 +173,27 @@
       [(ntt-apply _ _ _ _) (send parent-item new-list (ntt-apply-mixin ntt-ext))]))
   (send item initialize))
 
+; Add a hierarchical list containing the representaiton of an ntt. Parent is a frame, dialog, panel, or pane.
 (define (ntt-ext->hierarchical-list parent ntt-ext)
   (define lst (new hierarchical-list% [parent parent]))
   (ntt-ext->compound-item lst ntt-ext))
 
+; Hack so the close button works
+(define (test-frame-mixin chan)
+  (mixin (top-level-window<%>) ()
+    (super-new)
+    (define/augment (on-close)
+      (channel-put chan this))))
+
+(define es (make-eventspace))
+
+; The whole channel and eventspace thing is necessary because we pause execution of the program while
+; the window is open. The gui library is really not meant for that, so this is a workaround.
 (define (test-frame nttz ntt-ext)
   (define ch (make-channel))
     
   (parameterize ([current-eventspace es])
-    (define frame (new frame% [label "Lorem Ipsum"]))
+    (define frame (new ((test-frame-mixin ch) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
     (ntt-ext->hierarchical-list frame ntt-ext)
     (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     (send frame show #t))
