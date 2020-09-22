@@ -9,7 +9,8 @@
 
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
-                                      (set-background-color (->m (or/c string? (is-a?/c color%)) void?)))) ; Call this before setting text
+                                      (set-background-color (->m (or/c string? (is-a?/c color%)) void?))
+                                      (get-nttz-here (->m nttz?)))) ; Call this before setting text
                                       
 (define ntt-hierlist-item<%> (interface (ntt-hierlist-common-item<%>)                            
                                (open-on-path-to-focus (->m void?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
@@ -38,7 +39,10 @@
       (define delta (make-object style-delta% 'change-nothing))
       (send delta set-delta-background color)
       (define editor (get-editor))
-      (send editor change-style delta))))
+      (send editor change-style delta))
+
+    (define/public (get-nttz-here)
+      (ntt-ext-this-nttz ntt-ex))))
 
 (define (ntt-common-node-mixin ntt-ex-node)
   (compose
@@ -173,10 +177,21 @@
       [(ntt-apply _ _ _ _) (send parent-item new-list (ntt-apply-mixin ntt-ext))]))
   (send item initialize))
 
+(define (hierarchical-list-sel-handler-mixin %)
+  (class %
+    (super-new)
+    (init [selection-handler (λ (i) (void))])
+    (field [sel-handler selection-handler])
+    (define/override (on-select i)
+      (super on-select i)
+      (sel-handler i))))
+
 ; Add a hierarchical list containing the representaiton of an ntt. Parent is a frame, dialog, panel, or pane.
-(define (ntt-ext->hierarchical-list parent ntt-ext)
-  (define lst (new hierarchical-list% [parent parent]))
-  (ntt-ext->compound-item lst ntt-ext))
+; Returns the list itself, plus its (singular) top-level item
+; Frame ntt-ext (-> hierarchical-list-item<%> (void)) -> (values hierarchical-list% hierarchical-list-item%)
+(define (ntt-ext->hierarchical-list parent ntt-ext selection-handler)
+  (define lst (new (hierarchical-list-sel-handler-mixin hierarchical-list%) [parent parent] [selection-handler selection-handler]))
+  (values lst (ntt-ext->compound-item lst ntt-ext)))10
 
 ; Hack so the close button works
 (define (test-frame-mixin chan)
@@ -187,15 +202,39 @@
 
 (define es (make-eventspace))
 
+(define (get-panel-content-for-nttz nttz parent)
+  (new message% (parent parent) (label "Test")))
+
+(define current-nttz-info-panel%
+  (class panel%
+    (init initial-nttz)
+    (inherit delete-child)
+
+    (super-new)
+    (field [current-nttz initial-nttz]
+           [current-content (get-panel-content-for-nttz initial-nttz this)])
+
+
+    (define/public (new-nttz nttz)
+      (set! current-nttz nttz)
+      (delete-child current-content)
+      (set! current-content (get-panel-content-for-nttz nttz this)))))
+
 ; The whole channel and eventspace thing is necessary because we pause execution of the program while
 ; the window is open. The gui library is really not meant for that, so this is a workaround.
-(define (test-frame nttz ntt-ext)
+(define (test-frame nttz)
   (define ch (make-channel))
+  (define ntt-ext (nttz->ntt-ext nttz))
     
   (parameterize ([current-eventspace es])
     (define frame (new ((test-frame-mixin ch) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
-    (ntt-ext->hierarchical-list frame ntt-ext)
-    (define btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
+    (define-values (lst top-item) (ntt-ext->hierarchical-list frame ntt-ext (λ (selected-nttz) (send info-panel new-nttz selected-nttz))))
+    (define close-btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
+    #;(define text-in-editor (new text% [auto-wrap #t]))
+    #;(define editor-canvas (new editor-canvas% [parent frame] [editor text-in-editor]))
+
+    (define info-panel (new current-nttz-info-panel% [parent frame] [initial-nttz nttz]))
+    
     (send frame show #t))
     
   (define frame (channel-get ch))
