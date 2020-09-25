@@ -25,6 +25,6 @@
   (define fake-subterms
     (map (λ (subterm idx)
            (define expected-ty (ntt-goal subterm))
-           (syntax-property #`(Subterm #,idx)) (stx->datum #':) expected-ty))
+           (syntax-property #`(Subterm #,idx) (stx->datum #':) expected-ty))
          subterms (range (length subterms))))
   (stx->str (apply tactic fake-subterms)))

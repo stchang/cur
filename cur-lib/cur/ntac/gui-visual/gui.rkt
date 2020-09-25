@@ -207,17 +207,40 @@
       str
       (string-append (substring str 0 197) "...")))
 
-(define (ctx->list-box ctx parent)
+(define (id+ty->list-box id-strs ty-strs parent)
   (define lst-box (new list-box%
                        [label #f]
                        [parent parent]
                        [choices '()]
                        [columns (list "ID" ":" "Type")]))
-  (define ids (map (compose trunc-label stx->str) (ctx-ids ctx)))
-  (define colons (map (λ (_) ":") ids))
-  (define tys (map (compose trunc-label stx->str) (ctx-types ctx)))
+  (define ids (map trunc-label id-strs))
+  (define colons (map (λ (_) ":") id-strs))
+  (define tys (map trunc-label ty-strs))
   (send lst-box set ids colons tys)
   lst-box)
+
+(define (ctx->list-box ctx parent)
+  (id+ty->list-box (map stx->str (ctx-ids ctx))
+                   (map (compose stx->str) (ctx-types ctx))
+                   parent))
+
+
+(define (make-apply-box subterms tactic parent)
+  (define apply-box (new group-box-panel%
+                         [parent parent]
+                         [label "Apply"]))
+  
+  (define apply-subterms-box (new group-box-panel%
+                                  [parent apply-box]
+                                  [label "Subterms"]))
+  (id+ty->list-box (map number->string (range (length subterms)))
+                   (map (compose stx->str ntt-goal) subterms)
+                   apply-subterms-box)
+  
+  (define apply-result-box (new group-box-panel%
+                                [parent apply-box]
+                                [label "Result"]))
+  (new message% [parent apply-result-box] [label (trunc-label (apply->str subterms tactic))]))
 
 (define (get-panel-content-for-nttz this-nttz parent)
   (define panel (new vertical-panel% [parent parent]))
@@ -235,17 +258,7 @@
   (new message% (parent goal-panel) (label (trunc-label (stx->str goal))))
 
   (match focus
-    [(ntt-apply _ _ subterms tactic)
-     (define apply-box (new group-box-panel%
-                            [parent panel]
-                            [label "Apply"]))
-     (define apply-subterms-box (new group-box-panel%
-                                     [parent apply-box]
-                                     [label "Subterms"]))
-     (define apply-result-box (new group-box-panel%
-                                   [parent apply-box]
-                                   [label "Result"]))
-     (new message% [parent apply-result-box] [label (trunc-label (apply->str subterms tactic))])]
+    [(ntt-apply _ _ subterms tactic) (make-apply-box subterms tactic panel)]
     [_ (void)])
  
   panel)
