@@ -1,9 +1,8 @@
 #lang cur/metantac
 ;#lang s-exp "../main.rkt"
 
-(require ; "./base.rkt"
-  "./gui-visual/ntt-focus.rkt"
-  (for-syntax syntax/parse racket/base))
+(require 
+  (for-syntax racket/base))
 
 (provide
  (for-syntax display-focus-tree))

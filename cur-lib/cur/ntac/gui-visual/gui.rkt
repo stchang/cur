@@ -191,7 +191,7 @@
 ; Frame ntt-ext (-> hierarchical-list-item<%> (void)) -> (values hierarchical-list% hierarchical-list-item%)
 (define (ntt-ext->hierarchical-list parent ntt-ext selection-handler)
   (define lst (new (hierarchical-list-sel-handler-mixin hierarchical-list%) [parent parent] [selection-handler selection-handler]))
-  (values lst (ntt-ext->compound-item lst ntt-ext)))10
+  (values lst (ntt-ext->compound-item lst ntt-ext)))
 
 ; Hack so the close button works
 (define (test-frame-mixin chan)
