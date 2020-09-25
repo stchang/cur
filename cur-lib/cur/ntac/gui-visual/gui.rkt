@@ -202,8 +202,53 @@
 
 (define es (make-eventspace))
 
-(define (get-panel-content-for-nttz nttz parent)
-  (new message% (parent parent) (label "Test")))
+(define (trunc-label str)
+  (if (<= (string-length str) 200)
+      str
+      (string-append (substring str 0 197) "...")))
+
+(define (ctx->list-box ctx parent)
+  (define lst-box (new list-box%
+                       [label #f]
+                       [parent parent]
+                       [choices '()]
+                       [columns (list "ID" ":" "Type")]))
+  (define ids (map (compose trunc-label stx->str) (ctx-ids ctx)))
+  (define colons (map (λ (_) ":") ids))
+  (define tys (map (compose trunc-label stx->str) (ctx-types ctx)))
+  (send lst-box set ids colons tys)
+  lst-box)
+
+(define (get-panel-content-for-nttz this-nttz parent)
+  (define panel (new vertical-panel% [parent parent]))
+  
+  (define context-panel (new group-box-panel%
+                             (parent panel)
+                             (label "Context")))
+  (match-define (nttz context focus prev) this-nttz)
+  (ctx->list-box context context-panel)
+
+  (define goal-panel (new group-box-panel%
+                          (parent panel)
+                          (label "Goal")))
+  (define goal (ntt-goal focus))
+  (new message% (parent goal-panel) (label (trunc-label (stx->str goal))))
+
+  (match focus
+    [(ntt-apply _ _ subterms tactic)
+     (define apply-box (new group-box-panel%
+                            [parent panel]
+                            [label "Apply"]))
+     (define apply-subterms-box (new group-box-panel%
+                                     [parent apply-box]
+                                     [label "Subterms"]))
+     (define apply-result-box (new group-box-panel%
+                                   [parent apply-box]
+                                   [label "Result"]))
+     (new message% [parent apply-result-box] [label (trunc-label (apply->str subterms tactic))])]
+    [_ (void)])
+ 
+  panel)
 
 (define current-nttz-info-panel%
   (class panel%
@@ -228,12 +273,13 @@
     
   (parameterize ([current-eventspace es])
     (define frame (new ((test-frame-mixin ch) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
-    (define-values (lst top-item) (ntt-ext->hierarchical-list frame ntt-ext (λ (selected-nttz) (send info-panel new-nttz selected-nttz))))
-    (define close-btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
+    (define main-panel (new horizontal-panel% [parent frame]))
+    (define-values (lst top-item) (ntt-ext->hierarchical-list main-panel ntt-ext (λ (selected-node) (send info-panel new-nttz (send selected-node get-nttz-here)))))
+    ; (define close-btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     #;(define text-in-editor (new text% [auto-wrap #t]))
     #;(define editor-canvas (new editor-canvas% [parent frame] [editor text-in-editor]))
 
-    (define info-panel (new current-nttz-info-panel% [parent frame] [initial-nttz nttz]))
+    (define info-panel (new current-nttz-info-panel% [parent main-panel] [initial-nttz nttz]))
     
     (send frame show #t))
     
