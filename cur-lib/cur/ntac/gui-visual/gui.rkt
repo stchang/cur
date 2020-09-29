@@ -77,7 +77,8 @@
        (when on-path-to-focus?
          (if is-focus?
              (send this select #t)
-             (for [(ch child-nodes)] (send ch select-focus))))))
+             (for [(ch child-nodes)] (send ch select-focus))))
+       (void)))
    (ntt-common-mixin ntt-ex-node)))
 
 (define (ntt-common-leaf-mixin ntt-ex-leaf)
@@ -99,7 +100,8 @@
 
      (define/public (select-focus)
        (when is-focus?
-         (send this select #t))))
+         (send this select #t))
+       (void)))
    (ntt-common-mixin ntt-ex-leaf)))
 
 (define ntt-list-item<%>
@@ -214,12 +216,11 @@
     (super-new)
     (field [current-nttz init-nttz])
 
-    (define (set-nttz new-nttz)
+    (define/public (set-nttz new-nttz)
       (set! current-nttz new-nttz))
     
     (define/augment (on-close)
       (channel-put chan current-nttz))))
-
 
 ; Some GUI components only support up to 200 characters, truncate a string to fit
 (define (trunc-label str)
@@ -301,23 +302,36 @@
  
   panel)
 
+; Panel that mutates an inner child when a new ntt-ext is provided
+(define single-ntt-ext-child-panel%
+  (class panel%
+    (init initial-ntt-ext)
+    (inherit delete-child)
+    (super-new)
+
+    (field [current-ntt-ext initial-ntt-ext]
+           [current-content (inner (void) new-ntt-ext current-ntt-ext)])
+
+    (define/pubment (new-ntt-ext ntt-ext)
+      (set! current-ntt-ext ntt-ext)
+      (delete-child current-content)
+      (set! current-content (inner (void) new-ntt-ext ntt-ext))
+      current-content)))
+
 ; Parent panel for the currently selected node info
 ; This panel will change its contents when new-nttz is given
 (define current-nttz-info-panel%
-  (class panel%
-    (init initial-ntt-ext new-ntt-ext-callback)
+  (class single-ntt-ext-child-panel%
+    (init new-ntt-ext-callback)
     (inherit delete-child)
 
+    (field [ntt-ext-callback new-ntt-ext-callback])
+
     (super-new)
-    (field [current-ntt-ext initial-ntt-ext]
-           [ntt-ext-callback new-ntt-ext-callback]
-           [current-content (get-panel-content-for-ntt-ext initial-ntt-ext this new-ntt-ext-callback)])
-
-
-    (define/public (new-ntt-ext ntt-ext)
-      (set! current-ntt-ext ntt-ext)
-      (delete-child current-content)
-      (set! current-content (get-panel-content-for-ntt-ext ntt-ext this ntt-ext-callback)))))
+    
+    (define/augment (new-ntt-ext ntt-ext)
+      (get-panel-content-for-ntt-ext ntt-ext this ntt-ext-callback))))
+ 
 
 (define es (make-eventspace))
 
