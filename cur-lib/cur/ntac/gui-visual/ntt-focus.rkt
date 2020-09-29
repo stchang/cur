@@ -11,6 +11,7 @@
    (struct-out ntt-ext)
    (struct-out ntt-ext-leaf)
    (struct-out ntt-ext-node)
+   ntt-ext-find-focus
    )
 
   (struct ntt-ext (is-focus? on-path-to-focus? path-to-here this-nttz))
@@ -58,4 +59,13 @@
   (define (get-full-tree-and-focus tz)
     (define focus (nttz-focus tz))
     (define top (to-top tz))
-    (values (nttz-focus top) focus)))
+    (values (nttz-focus top) focus))
+
+  ; ntt-ext -> [Maybe ntt-ext]
+  ; Find the focused node in the ntt-ext
+  (define (ntt-ext-find-focus nex)
+    (if (ntt-ext-on-path-to-focus? nex)
+        (or (and (ntt-ext-is-focus? nex) nex)
+            (and (ntt-ext-node? nex)
+                 (ormap ntt-ext-find-focus (ntt-ext-node-subtrees nex))))
+        #f)))

@@ -10,12 +10,13 @@
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
                                       (set-background-color (->m (or/c string? (is-a?/c color%)) void?))
-                                      (get-nttz-here (->m nttz?)))) ; Call this before setting text
+                                      (get-ntt-ext-here (->m ntt-ext?)))) ; Call this before setting text
                                       
 (define ntt-hierlist-item<%> (interface (ntt-hierlist-common-item<%>)                            
                                (open-on-path-to-focus (->m void?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
                                (open-all (->m void?)) ; Recursively open all nodes
-                               (initialize (->m void?))))
+                               (initialize (->m void?))
+                               (select-focus (->m void?))))
 
 #;(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%> hierarchical-list-compound-item<%>)
                                           (add-child-ntt (->m ntt? (is-a?/c ntt-hierlist-item<%>)))))
@@ -41,8 +42,8 @@
       (define editor (get-editor))
       (send editor change-style delta))
 
-    (define/public (get-nttz-here)
-      (ntt-ext-this-nttz ntt-ex))))
+    (define/public (get-ntt-ext-here)
+      ntt-ex)))
 
 (define (ntt-common-node-mixin ntt-ex-node)
   (compose
@@ -70,7 +71,13 @@
        (open)  ; The subterm can't open before the parent does
        (for [(subtree subtrees)]
          (define ch-node (ntt-ext->compound-item this subtree))
-         (set! child-nodes (cons ch-node child-nodes)))))
+         (set! child-nodes (cons ch-node child-nodes))))
+     
+     (define/public (select-focus)
+       (when on-path-to-focus?
+         (if is-focus?
+             (send this select #t)
+             (for [(ch child-nodes)] (send ch select-focus))))))
    (ntt-common-mixin ntt-ex-node)))
 
 (define (ntt-common-leaf-mixin ntt-ex-leaf)
@@ -79,6 +86,8 @@
      (ntt-hierlist-item<%>)
      (super-new)
 
+     (match-define (ntt-ext-leaf is-focus? on-path-to-focus? path-to-here this-nttz) ntt-ex-leaf)
+
      (define/public (open-on-path-to-focus)
        (void))
 
@@ -86,7 +95,11 @@
        (void))
 
      (define/public (initialize)
-       (void)))
+       (void))
+
+     (define/public (select-focus)
+       (when is-focus?
+         (send this select #t))))
    (ntt-common-mixin ntt-ex-leaf)))
 
 (define ntt-list-item<%>
@@ -175,7 +188,8 @@
       [(ntt-hole _ _) (send parent-item new-item (ntt-hole-mixin ntt-ext))]
       [(ntt-context _ _ _ _) (send parent-item new-list (ntt-context-mixin ntt-ext))]
       [(ntt-apply _ _ _ _) (send parent-item new-list (ntt-apply-mixin ntt-ext))]))
-  (send item initialize))
+  (send item initialize)
+  item)
 
 (define (hierarchical-list-sel-handler-mixin %)
   (class %
@@ -191,22 +205,29 @@
 ; Frame ntt-ext (-> hierarchical-list-item<%> (void)) -> (values hierarchical-list% hierarchical-list-item%)
 (define (ntt-ext->hierarchical-list parent ntt-ext selection-handler)
   (define lst (new (hierarchical-list-sel-handler-mixin hierarchical-list%) [parent parent] [selection-handler selection-handler]))
-  (values lst (ntt-ext->compound-item lst ntt-ext)))
+  (define top-item (ntt-ext->compound-item lst ntt-ext))
+  (values lst top-item))
 
 ; Hack so the close button works
-(define (test-frame-mixin chan)
+(define (test-frame-mixin chan init-nttz)
   (mixin (top-level-window<%>) ()
     (super-new)
+    (field [current-nttz init-nttz])
+
+    (define (set-nttz new-nttz)
+      (set! current-nttz new-nttz))
+    
     (define/augment (on-close)
-      (channel-put chan this))))
+      (channel-put chan current-nttz))))
 
-(define es (make-eventspace))
 
+; Some GUI components only support up to 200 characters, truncate a string to fit
 (define (trunc-label str)
   (if (<= (string-length str) 200)
       str
       (string-append (substring str 0 197) "...")))
 
+; Create a table pairing IDs with a type
 (define (id+ty->list-box id-strs ty-strs parent)
   (define lst-box (new list-box%
                        [label #f]
@@ -219,12 +240,13 @@
   (send lst-box set ids colons tys)
   lst-box)
 
+; Table for the context at a given point of the tree
 (define (ctx->list-box ctx parent)
   (id+ty->list-box (map stx->str (ctx-ids ctx))
                    (map (compose stx->str) (ctx-types ctx))
                    parent))
 
-
+; Make a box that has additional info about an apply node of the tree
 (define (make-apply-box subterms tactic parent)
   (define apply-box (new group-box-panel%
                          [parent parent]
@@ -242,7 +264,22 @@
                                 [label "Result"]))
   (new message% [parent apply-result-box] [label (trunc-label (apply->str subterms tactic))]))
 
-(define (get-panel-content-for-nttz this-nttz parent)
+(define (make-hole-box parent ntt-ext new-ntt-ext-callback)
+  (define hole-box (new group-box-panel%
+                        [parent parent]
+                        [label "Hole"]
+                        [stretchable-height 0]))
+  (define button (new button%
+                      [parent hole-box]
+                      [label "Focus here"]
+                      [enabled (not (ntt-ext-is-focus? ntt-ext))]
+                      [callback (λ (b e) (new-ntt-ext-callback ntt-ext))]))
+  hole-box)
+
+; Get the panel that shows info about a selected nttz
+; ntt-ext panel [ntt-ext -> void] -> panel
+(define (get-panel-content-for-ntt-ext this-ntt-ext parent new-ntt-ext-callback)
+  (define this-nttz (ntt-ext-this-nttz this-ntt-ext))
   (define panel (new vertical-panel% [parent parent]))
   
   (define context-panel (new group-box-panel%
@@ -259,43 +296,70 @@
 
   (match focus
     [(ntt-apply _ _ subterms tactic) (make-apply-box subterms tactic panel)]
+    [(ntt-hole _ _) (make-hole-box panel this-ntt-ext new-ntt-ext-callback)]
     [_ (void)])
  
   panel)
 
+; Parent panel for the currently selected node info
+; This panel will change its contents when new-nttz is given
 (define current-nttz-info-panel%
   (class panel%
-    (init initial-nttz)
+    (init initial-ntt-ext new-ntt-ext-callback)
     (inherit delete-child)
 
     (super-new)
-    (field [current-nttz initial-nttz]
-           [current-content (get-panel-content-for-nttz initial-nttz this)])
+    (field [current-ntt-ext initial-ntt-ext]
+           [ntt-ext-callback new-ntt-ext-callback]
+           [current-content (get-panel-content-for-ntt-ext initial-ntt-ext this new-ntt-ext-callback)])
 
 
-    (define/public (new-nttz nttz)
-      (set! current-nttz nttz)
+    (define/public (new-ntt-ext ntt-ext)
+      (set! current-ntt-ext ntt-ext)
       (delete-child current-content)
-      (set! current-content (get-panel-content-for-nttz nttz this)))))
+      (set! current-content (get-panel-content-for-ntt-ext ntt-ext this ntt-ext-callback)))))
+
+(define es (make-eventspace))
 
 ; The whole channel and eventspace thing is necessary because we pause execution of the program while
 ; the window is open. The gui library is really not meant for that, so this is a workaround.
 (define (test-frame nttz)
   (define ch (make-channel))
-  (define ntt-ext (nttz->ntt-ext nttz))
+  (define init-ntt-ext (nttz->ntt-ext nttz))
+  ; (displayln (eval (with-input-from-string "testnum" read)))
+
+  (define frame (void))
     
   (parameterize ([current-eventspace es])
-    (define frame (new ((test-frame-mixin ch) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
+    (set! frame (new ((test-frame-mixin ch nttz) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
     (define main-panel (new horizontal-panel% [parent frame]))
-    (define-values (lst top-item) (ntt-ext->hierarchical-list main-panel ntt-ext (λ (selected-node) (send info-panel new-nttz (send selected-node get-nttz-here)))))
+
+    ; Updates the node that the user is focusing on, without modifying the underlying tree
+    (define (on-ntt-tree-select new-ntt-ex)
+      (send info-panel new-ntt-ext new-ntt-ex))
+
+    ; Call when the proof tree itself must change
+    ; reason is one of:
+    ; - 'hole-selected (if a hole is selected as the new focus in the tree)
+    ; - 'interaction-panel (if the user typed in the interaction panel, or used undo/redo)
+    (define (set-new-ntt-ext new-ntt-ext reason)
+      (define new-nttz (ntt-ext-this-nttz new-ntt-ext))
+      (send frame set-nttz new-nttz))
+    
+    (define-values (lst top-item) (ntt-ext->hierarchical-list main-panel init-ntt-ext (λ (selected-node) (on-ntt-tree-select (send selected-node get-ntt-ext-here)))))
+    
     ; (define close-btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     #;(define text-in-editor (new text% [auto-wrap #t]))
     #;(define editor-canvas (new editor-canvas% [parent frame] [editor text-in-editor]))
 
-    (define info-panel (new current-nttz-info-panel% [parent main-panel] [initial-nttz nttz]))
+    (define info-panel (new current-nttz-info-panel%
+                            [parent main-panel]
+                            [initial-ntt-ext (ntt-ext-find-focus init-ntt-ext)]
+                            [new-ntt-ext-callback (λ (ntt-ext) (set-new-ntt-ext ntt-ext 'hole-selected))]))
     
-    (send frame show #t))
+    (send frame show #t)
+    (send top-item select-focus))
     
-  (define frame (channel-get ch))
+  (define new-nttz (channel-get ch))
   (send frame show #f)
-  nttz)
+  new-nttz)
