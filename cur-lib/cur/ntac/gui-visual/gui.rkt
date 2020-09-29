@@ -163,7 +163,7 @@
      (define new-ctx-items (ctx-difference child-ctxt this-ctxt))
      (define/override (initialize)
        (super initialize)
-       (set-text  (string-append "Context: " (ctx->str new-ctx-items))))) ; TODO What context?
+       (set-text (string-append "Context: " (ctx->str new-ctx-items))))) ; TODO What context?
    (ntt-common-node-mixin ntt-ext)))
 
 (define (ntt-apply-mixin ntt-ext)
@@ -220,7 +220,7 @@
       (set! current-nttz new-nttz))
     
     (define/augment (on-close)
-      (channel-put chan current-nttz))))
+      (channel-put chan (list 'done current-nttz)))))
 
 ; Some GUI components only support up to 200 characters, truncate a string to fit
 (define (trunc-label str)
@@ -323,7 +323,6 @@
 (define current-nttz-info-panel%
   (class single-ntt-ext-child-panel%
     (init new-ntt-ext-callback)
-    (inherit delete-child)
 
     (field [ntt-ext-callback new-ntt-ext-callback])
 
@@ -331,7 +330,24 @@
     
     (define/augment (new-ntt-ext ntt-ext)
       (get-panel-content-for-ntt-ext ntt-ext this ntt-ext-callback))))
- 
+
+; Parent panel for the tree view
+(define current-tree-panel%
+  (class single-ntt-ext-child-panel%
+    (init on-ntt-tree-select)
+    (inherit-field current-content)
+    (field [ntt-tree-select on-ntt-tree-select]
+           [top-item #f])
+    
+    (super-new) ; This calls new-ntt-ext, which will use the fields- so this must go after the fields are initialized
+    
+    (define/augment (new-ntt-ext ntt-ext)
+      (define-values (lst t-item) (ntt-ext->hierarchical-list this ntt-ext ntt-tree-select))
+      (set! top-item t-item)
+      lst)
+
+    (define/public (select-focus)
+      (when top-item (send top-item select-focus)))))
 
 (define es (make-eventspace))
 
@@ -339,6 +355,12 @@
 ; the window is open. The gui library is really not meant for that, so this is a workaround.
 (define (test-frame nttz)
   (define ch (make-channel))
+  (define ch-resp (make-channel))
+
+  (define (run-sync-on-main-thread thunk)
+    (channel-put ch (list 'run-on-main-thread thunk))
+    (channel-get ch-resp))
+  
   (define init-ntt-ext (nttz->ntt-ext nttz))
   ; (displayln (eval (with-input-from-string "testnum" read)))
 
@@ -356,12 +378,23 @@
     ; reason is one of:
     ; - 'hole-selected (if a hole is selected as the new focus in the tree)
     ; - 'interaction-panel (if the user typed in the interaction panel, or used undo/redo)
-    (define (set-new-ntt-ext new-ntt-ext reason)
-      (define new-nttz (ntt-ext-this-nttz new-ntt-ext))
-      (send frame set-nttz new-nttz))
+    (define (set-new-ntt-ext new-ntt-ext reason) ; Note that new-ntt-ext is not the root
+      (run-sync-on-main-thread
+       (λ ()
+         (define new-nttz (ntt-ext-this-nttz new-ntt-ext))
+       
+         (define top-ntt-ext (nttz->ntt-ext new-nttz))
+      
+         (send frame set-nttz new-nttz)
+      
+         (send tree-panel new-ntt-ext top-ntt-ext)
+         (send tree-panel select-focus))))
     
-    (define-values (lst top-item) (ntt-ext->hierarchical-list main-panel init-ntt-ext (λ (selected-node) (on-ntt-tree-select (send selected-node get-ntt-ext-here)))))
-    
+    (define tree-panel (new current-tree-panel%
+                            [parent main-panel]
+                            [initial-ntt-ext init-ntt-ext]
+                            [on-ntt-tree-select (λ (selected-node) (on-ntt-tree-select (send selected-node get-ntt-ext-here)))]))
+        
     ; (define close-btn (new button% [label "Close"] [parent frame] [callback (λ (b e) (channel-put ch frame))]))
     #;(define text-in-editor (new text% [auto-wrap #t]))
     #;(define editor-canvas (new editor-canvas% [parent frame] [editor text-in-editor]))
@@ -372,8 +405,15 @@
                             [new-ntt-ext-callback (λ (ntt-ext) (set-new-ntt-ext ntt-ext 'hole-selected))]))
     
     (send frame show #t)
-    (send top-item select-focus))
+    (send tree-panel select-focus)
+
+    (define new-nttz
+      (let loop
+        ()
+        (match (channel-get ch)
+          [(list 'run-on-main-thread thunk) (channel-put ch-resp (thunk))
+                                            (loop)] ; Some operations need to be run on the main thread or else cur throws an error
+          [(list 'done tz) tz])))
     
-  (define new-nttz (channel-get ch))
-  (send frame show #f)
-  new-nttz)
+    (send frame show #f)
+    new-nttz))
