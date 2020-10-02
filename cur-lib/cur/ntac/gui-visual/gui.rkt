@@ -65,7 +65,8 @@
 
      (define/public (open-all)
        (open)
-       (map (λ (child) (send child open-all))))
+       (map (λ (child) (send child open-all)) child-nodes)
+       (void))
 
      (define/public (initialize)
        (open)  ; The subterm can't open before the parent does
@@ -347,7 +348,44 @@
       lst)
 
     (define/public (select-focus)
-      (when top-item (send top-item select-focus)))))
+      (when top-item (send top-item select-focus)))
+
+    (define/public (expand-all)
+      (send top-item open-all))
+
+    (define/public (expand-path-to-focus)
+      (send top-item open-on-path-to-focus))))
+
+; Decorate tree with buttons to manage expanding/collapsing
+(define tree-panel-with-buttons%
+  (class vertical-panel%
+    (init initial-ntt-ext on-ntt-tree-select)
+    (super-new)
+    (field [tree-panel (new current-tree-panel%
+                            [parent this]
+                            [initial-ntt-ext initial-ntt-ext]
+                            [on-ntt-tree-select on-ntt-tree-select])])
+    (define button-panel (new horizontal-panel%
+                              [parent this]
+                              [stretchable-height #f]))
+    
+    (define button-expand-all (new button%
+                                   [label "Expand all"]
+                                   [parent button-panel]
+                                   [stretchable-width #t]
+                                   [callback (λ (b e) (send tree-panel expand-all))]))
+
+    (define button-expand-focus (new button%
+                                     [label "Collapse all except focus"]
+                                     [parent button-panel]
+                                     [stretchable-width #t]
+                                     [callback (λ (b e) (send tree-panel expand-path-to-focus))]))
+
+    (define/public (select-focus)
+      (send tree-panel select-focus))
+
+    (define/public (new-ntt-ext ntt-ext)
+      (send tree-panel new-ntt-ext ntt-ext))))
 
 (define es (make-eventspace))
 
@@ -390,7 +428,7 @@
          (send tree-panel new-ntt-ext top-ntt-ext)
          (send tree-panel select-focus))))
     
-    (define tree-panel (new current-tree-panel%
+    (define tree-panel (new tree-panel-with-buttons%
                             [parent main-panel]
                             [initial-ntt-ext init-ntt-ext]
                             [on-ntt-tree-select (λ (selected-node) (on-ntt-tree-select (send selected-node get-ntt-ext-here)))]))
