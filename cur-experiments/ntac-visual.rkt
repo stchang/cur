@@ -17,13 +17,15 @@
         (fill (exact #'4))
         display-focus-tree)
 
-#;(ntac (Π (x : Type) (n : x) x)
+(ntac (Π (x : Type) (n : x) x)
+      display-focus-tree
         (by-intros x n)
-        display-focus-tree
-        (by-assumption)
+       
+        (fill (exact #'n))
+        ;(by-assumption)
         display-focus-tree)
 
-(ntac (Π (x : Type) (y : Type)
+#;(ntac (Π (x : Type) (y : Type)
          (-> (Π (p : Type) (Or p (-> p False)))
              (-> (-> (-> x y) y) (-> (-> y x) x))))
       (by-intros x y ex-mid xyy yx)
@@ -31,7 +33,8 @@
       (fill (exact #'xval))
       (by-apply yx)
       (by-apply xyy)
-      (by-intros xval)     
-      (by-destruct (notxval xval))
+      (by-intros xval)
       display-focus-tree
+      (by-destruct (notxval xval))
+      
       display-focus)

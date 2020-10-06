@@ -432,6 +432,33 @@
     (define/public (new-ntt-ext ntt-ext)
       (send tree-panel new-ntt-ext ntt-ext))))
 
+(define interaction-panel%
+  (class vertical-panel%
+    (init initial-nttz)
+    (init-field main-thread-runner new-nttz-callback)
+    (field (current-nttz initial-nttz))
+    
+    (super-new)
+
+    (define tactic-input
+      (new text-field%
+           [parent this]
+           [label "Tactic"]
+           [callback (λ (field event)
+                       (when (symbol=? (send event get-event-type) 'text-field-enter)
+                         (define entered-text (send field get-value))
+                         (send field set-value "")
+                         (define next-nttz
+                           (main-thread-runner
+                            (λ ()
+                              (with-handlers ([exn:fail? (λ (e) (displayln e) current-nttz)])
+                                ((eval (with-input-from-string entered-text read)) current-nttz)))))
+                         (unless (eq? current-nttz next-nttz)
+                           (new-nttz-callback next-nttz))))]))
+
+    (define/public (set-nttz new-nttz)
+      (set! current-nttz new-nttz))))
+
 (define es (make-eventspace))
 
 ; The whole channel and eventspace thing is necessary because we pause execution of the program while
@@ -440,12 +467,19 @@
   (define ch (make-channel))
   (define ch-resp (make-channel))
 
+  (define in-main-thread-runner? #f)
   (define (run-sync-on-main-thread thunk)
-    (channel-put ch (list 'run-on-main-thread thunk))
-    (channel-get ch-resp))
+    (if in-main-thread-runner?
+        (thunk)
+        (begin
+          (set! in-main-thread-runner? #t)
+          (channel-put ch (list 'run-on-main-thread thunk))
+          (let ([retval (channel-get ch-resp)]) ; For some reason define isn't allowed here?
+            (set! in-main-thread-runner? #f)
+            retval))))
   
   (define init-ntt-ext (nttz->ntt-ext nttz))
-  ; (displayln (eval (with-input-from-string "testnum" read)))
+  ;(displayln ((eval (with-input-from-string "(fill (exact #'n))" read)) nttz))
 
   (define frame (void))
     
@@ -461,17 +495,21 @@
     ; reason is one of:
     ; - 'hole-selected (if a hole is selected as the new focus in the tree)
     ; - 'interaction-panel (if the user typed in the interaction panel, or used undo/redo)
-    (define (set-new-ntt-ext new-ntt-ext reason) ; Note that new-ntt-ext is not the root
+    (define (set-new-nttz new-nttz reason)
       (run-sync-on-main-thread
-       (λ ()
-         (define new-nttz (ntt-ext-this-nttz new-ntt-ext))
-       
+       (λ ()       
          (define top-ntt-ext (nttz->ntt-ext new-nttz))
       
          (send frame set-nttz new-nttz)
       
          (send tree-panel new-ntt-ext top-ntt-ext)
-         (send tree-panel select-focus))))
+         (send tree-panel select-focus)
+         (send interactions-panel set-nttz new-nttz)
+         )))
+
+    ; Same as set-new-nttz, but with ntt-exts
+    (define (set-new-ntt-ext new-ntt-ext reason) ; Note that new-ntt-ext is not the root
+      (set-new-nttz (ntt-ext-this-nttz new-ntt-ext) reason))
     
     (define tree-panel (new tree-panel-with-buttons%
                             [parent main-panel]
@@ -486,6 +524,13 @@
                             [parent main-panel]
                             [initial-ntt-ext (ntt-ext-find-focus init-ntt-ext)]
                             [new-ntt-ext-callback (λ (ntt-ext) (set-new-ntt-ext ntt-ext 'hole-selected))]))
+
+    (define interactions-panel
+      (new interaction-panel%
+           [parent main-panel]
+           [initial-nttz nttz]
+           [main-thread-runner run-sync-on-main-thread]
+           [new-nttz-callback (λ (nttz) (set-new-nttz nttz 'interaction-panel))]))
     
     (send frame show #t)
     (send tree-panel select-focus)
