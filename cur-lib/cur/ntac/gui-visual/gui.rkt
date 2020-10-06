@@ -313,6 +313,7 @@
   hole-box)
 
 ; Get the panel that shows info about a selected nttz
+; CONSTRAINT: This must run on the main thread
 ; ntt-ext panel [ntt-ext -> void] -> panel
 (define (get-panel-content-for-ntt-ext this-ntt-ext parent new-ntt-ext-callback)
   (define this-nttz (ntt-ext-this-nttz this-ntt-ext))
@@ -334,6 +335,16 @@
     [(ntt-apply _ _ subterms tactic) (make-apply-box subterms tactic panel)]
     [(ntt-hole _ _) (make-hole-box panel this-ntt-ext new-ntt-ext-callback)]
     [_ (void)])
+
+  (unless (ntt-contains-hole? focus)
+    (define complete-proof-term
+      (with-handlers ([exn:fail? (λ (e) (displayln e)
+                                   "\"Proof tree has no holes,\nbut encountered error constructing complete term.\nSee console output for details.\"")])
+        (proof-tree->complete-term focus)))
+    (define complete-term-panel (new group-box-panel%
+                                     (parent panel)
+                                     (label "Complete Proof Term")))
+    (new pretty-message% (parent complete-term-panel) (label (stx->str complete-proof-term))))
  
   panel)
 

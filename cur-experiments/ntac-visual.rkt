@@ -27,6 +27,11 @@
          (-> (Π (p : Type) (Or p (-> p False)))
              (-> (-> (-> x y) y) (-> (-> y x) x))))
       (by-intros x y ex-mid xyy yx)
-      (by-destruct (ex-mid x))
+      (by-destruct (ex-mid x) #:as [(xval) (notxval)])
+      (fill (exact #'xval))
+      (by-apply yx)
+      (by-apply xyy)
+      (by-intros xval)     
+      (by-destruct (notxval xval))
       display-focus-tree
       display-focus)

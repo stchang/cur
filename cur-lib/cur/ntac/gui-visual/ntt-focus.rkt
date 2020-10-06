@@ -14,6 +14,10 @@
    ntt-ext-find-focus
    )
 
+  ; is-focus?: bool, is the current node _the_ focus
+  ; on-path-to-focus?: bool, is the current node the focus _or_ is a subtree on the path to focus
+  ; path-to-here: list of steps from navigate.rkt
+  ; this-nttz: nttz at this node
   (struct ntt-ext (is-focus? on-path-to-focus? path-to-here this-nttz))
 
   ; A ntt-ext is one of the following, it is sort of a combination of a ntt and nttz.
