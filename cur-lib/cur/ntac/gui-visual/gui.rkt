@@ -223,6 +223,40 @@
     (define/augment (on-close)
       (channel-put chan (list 'done current-nttz)))))
 
+; Nice indentation and not limited to 200 chars
+(define pretty-message%
+  (class editor-canvas%
+    (inherit set-editor)
+    
+    (init label)
+    (super-new)
+
+    ; pretty-format doesn't work on strings (or rather, it just puts it in one line)
+    ; read creates a s-exp, and pretty-format _can_ deal with that
+    (define label-s-exp (with-input-from-string label read))
+    (define label-val (pretty-format label-s-exp 80 #:mode 'display))
+    
+    (define t (new
+               (class text%
+                 (super-new)
+                 (field [is-initial-insert? #t])
+
+                 ; Insert once and nevermore
+                 (define/augment (can-insert? s l)
+                   (if is-initial-insert?
+                       (begin
+                         (set! is-initial-insert? #f)
+                         #t)
+                       #f))
+                 (define/augment (can-delete? s l) #f)
+
+                 ; Monospace
+                 (send this change-style (make-object style-delta% 'change-family 'modern))
+                 (send this insert label-val))))
+
+    (set-editor t)))
+    
+
 ; Some GUI components only support up to 200 characters, truncate a string to fit
 (define (trunc-label str)
   (if (<= (string-length str) 200)
@@ -264,7 +298,7 @@
   (define apply-result-box (new group-box-panel%
                                 [parent apply-box]
                                 [label "Result"]))
-  (new message% [parent apply-result-box] [label (trunc-label (apply->str subterms tactic))]))
+  (new pretty-message% [parent apply-result-box] [label (apply->str subterms tactic)]))
 
 (define (make-hole-box parent ntt-ext new-ntt-ext-callback)
   (define hole-box (new group-box-panel%
@@ -294,7 +328,7 @@
                           (parent panel)
                           (label "Goal")))
   (define goal (ntt-goal focus))
-  (new message% (parent goal-panel) (label (trunc-label (stx->str goal))))
+  (new pretty-message% (parent goal-panel) (label (stx->str goal)))
 
   (match focus
     [(ntt-apply _ _ subterms tactic) (make-apply-box subterms tactic panel)]
