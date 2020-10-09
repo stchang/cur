@@ -5,7 +5,7 @@
 (require
   (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt"))
 
-(require racket/match racket/gui mrlib/hierlist racket/class "../ctx.rkt")
+(require racket/exn racket/match racket/gui mrlib/hierlist racket/class "../ctx.rkt")
 
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
@@ -444,15 +444,15 @@
       (new text-field%
            [parent this]
            [label "Tactic"]
-           [callback (λ (field event)
+           [callback (λ (text-field event)
                        (when (symbol=? (send event get-event-type) 'text-field-enter)
-                         (define entered-text (send field get-value))
-                         (send field set-value "")
+                         (define entered-text (send text-field get-value))
+                         (send text-field set-value "")
                          (define next-nttz
                            (main-thread-runner
                             (λ ()
-                              (with-handlers ([exn:fail? (λ (e) (displayln e) current-nttz)])
-                                ((eval (with-input-from-string entered-text read)) current-nttz)))))
+                              (with-handlers ([exn:fail? (λ (e) (displayln (exn->string e)) current-nttz)])
+                                ((eval (with-input-from-string entered-text read-syntax)) current-nttz)))))
                          (unless (eq? current-nttz next-nttz)
                            (new-nttz-callback next-nttz))))]))
 
