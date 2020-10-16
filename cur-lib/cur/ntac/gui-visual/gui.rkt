@@ -446,6 +446,8 @@
     
     (super-new)
 
+
+
     (define tactic-input
       (new text-field%
            [parent this]
@@ -464,6 +466,24 @@
                            (set! redo-buffer '())
                            (new-nttz-callback next-nttz 'interaction-panel))))]))
 
+    (define undo-button
+      (new button%
+           [parent this]
+           [label "Undo"]
+           [enabled #f]
+           [callback (λ (b e) (undo 1))]))
+
+    (define redo-button
+      (new button%
+           [parent this]
+           [label "Redo"]
+           [enabled #f]
+           [callback (λ (b e) (redo 1))]))
+    
+    (define (update-undo-redo-buttons)
+      (send undo-button enable (cons? undo-buffer))
+      (send redo-button enable (cons? redo-buffer)))
+
     (define/public (set-nttz new-nttz reason)  
       (match reason
         [(list 'hole-selected path)
@@ -474,7 +494,30 @@
                              [_ (cons (interaction-history current-nttz new-nttz path-str #t) undo-buffer)]))
          (set! redo-buffer '())]
         [_ (void)])
+      (update-undo-redo-buttons)
       (set! current-nttz new-nttz))
+
+    (define/public (undo num-times) ; TODO abstract these two functions
+      (when (> num-times 0)
+        (define new-nttz current-nttz)
+        (for ([x (in-range (min (length undo-buffer) num-times))])
+          (match undo-buffer
+            [(cons f r) (set! new-nttz (interaction-history-before-tactic f))
+                        (set! undo-buffer r)
+                        (set! redo-buffer (cons f redo-buffer))]
+            [_ (void)]))
+        (new-nttz-callback new-nttz 'undo)))
+
+    (define/public (redo num-times)
+      (when (> num-times 0)
+        (define new-nttz current-nttz)
+        (for ([x (in-range (min (length redo-buffer) num-times))])
+          (match redo-buffer
+            [(cons f r) (set! new-nttz (interaction-history-after-tactic f))
+                        (set! redo-buffer r)
+                        (set! undo-buffer (cons f undo-buffer))]
+            [_ (void)]))
+        (new-nttz-callback new-nttz 'redo)))
 
     (define/public (print-tactics)
       (displayln "---Tactics from interaction:---")
