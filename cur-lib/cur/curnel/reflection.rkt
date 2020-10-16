@@ -74,9 +74,12 @@
     ctx))
 
 (define (turnstile-infer syn #:local-env [env '()])
-  (let* ([ctx (env->ctx env)]
-         [type (car (cadddr (infer (list syn) #:ctx ctx)))])
-    type))
+  (syntax-parse (turnstile-infers (list syn) #:local-env env)
+    [(_ _ _ (ty)) #'ty]))
+
+;; expand multiple terms/types in the same context
+(define (turnstile-infers syns #:local-env [env '()])
+  (infer syns #:ctx (env->ctx env)))
 
 (define (turnstile-expand syn #:local-env [env '()]) ;returns ((tvs) (xs) (es) (τs))
   (let ([ctx (env->ctx env)])
@@ -102,9 +105,9 @@
 
 
 (define (cur-type-check? term expected-type #:local-env [env '()])
-  (let ([inferred-type (turnstile-infer term #:local-env env)])
-    ;(displayln (format "inferred: ~a\nexpected: ~a" (syntax->datum inferred-type) (syntax->datum expected-type)))
-    (typecheck? inferred-type expected-type #;(cur-expand expected-type #:local-env env))))
+  (syntax-parse (turnstile-infers (list term expected-type) #:local-env env)
+    [(_ _ (_ expected-ty+) (inferred-ty _))
+     (typecheck? #'inferred-ty #'expected-ty+)]))
 
 (define (cur->datum syn)
   (let ([expanded (cur-expand syn)])
