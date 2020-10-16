@@ -432,11 +432,17 @@
     (define/public (new-ntt-ext ntt-ext)
       (send tree-panel new-ntt-ext ntt-ext))))
 
+(struct interaction-history [before-tactic after-tactic tactic-str is-change-focus])
+; (interaction-history nttz nttz string bool) represents the state of the proof before a given interaction, the text of the tactic itself, and whether it is a simple focus change
+; Two simple focus changes in a row can be combined into one
+
 (define interaction-panel%
   (class vertical-panel%
     (init initial-nttz)
     (init-field main-thread-runner new-nttz-callback)
-    (field (current-nttz initial-nttz))
+    (field (current-nttz initial-nttz)
+           (undo-buffer '())  ; List of interaction-history, first in list is most recent
+           (redo-buffer '())) ; List of interaction-history, first in list is next to redo
     
     (super-new)
 
@@ -454,10 +460,27 @@
                               (with-handlers ([exn:fail? (λ (e) (displayln (exn->string e)) current-nttz)])
                                 ((eval (with-input-from-string entered-text read-syntax)) current-nttz)))))
                          (unless (eq? current-nttz next-nttz)
-                           (new-nttz-callback next-nttz))))]))
+                           (set! undo-buffer (cons (interaction-history current-nttz next-nttz entered-text #f) undo-buffer))
+                           (set! redo-buffer '())
+                           (new-nttz-callback next-nttz 'interaction-panel))))]))
 
-    (define/public (set-nttz new-nttz)
-      (set! current-nttz new-nttz))))
+    (define/public (set-nttz new-nttz reason)  
+      (match reason
+        [(list 'hole-selected path)
+         (define path-str "TODO Path tactic->string")
+         (set! undo-buffer (match undo-buffer
+                             [(cons (interaction-history before-prev _ _ #t) r)
+                              (cons (interaction-history before-prev new-nttz path-str #t) r)]
+                             [_ (cons (interaction-history current-nttz new-nttz path-str #t) undo-buffer)]))
+         (set! redo-buffer '())]
+        [_ (void)])
+      (set! current-nttz new-nttz))
+
+    (define/public (print-tactics)
+      (displayln "---Tactics from interaction:---")
+      (for ([history (reverse undo-buffer)])
+        (displayln (interaction-history-tactic-str history)))
+      (displayln "------"))))
 
 (define es (make-eventspace))
 
@@ -493,8 +516,10 @@
 
     ; Call when the proof tree itself must change
     ; reason is one of:
-    ; - 'hole-selected (if a hole is selected as the new focus in the tree)
-    ; - 'interaction-panel (if the user typed in the interaction panel, or used undo/redo)
+    ; - (list 'hole-selected path) (if a hole is selected as the new focus in the tree)
+    ; - 'interaction-panel (if the user typed in the interaction panel)
+    ; - 'undo (from interaction panel)
+    ; - 'redo
     (define (set-new-nttz new-nttz reason)
       (run-sync-on-main-thread
        (λ ()       
@@ -504,7 +529,7 @@
       
          (send tree-panel new-ntt-ext top-ntt-ext)
          (send tree-panel select-focus)
-         (send interactions-panel set-nttz new-nttz)
+         (send interactions-panel set-nttz new-nttz reason)
          )))
 
     ; Same as set-new-nttz, but with ntt-exts
@@ -523,14 +548,14 @@
     (define info-panel (new current-nttz-info-panel%
                             [parent main-panel]
                             [initial-ntt-ext (ntt-ext-find-focus init-ntt-ext)]
-                            [new-ntt-ext-callback (λ (ntt-ext) (set-new-ntt-ext ntt-ext 'hole-selected))]))
+                            [new-ntt-ext-callback (λ (ntt-ext) (set-new-ntt-ext ntt-ext (list 'hole-selected (ntt-ext-path-to-here ntt-ext))))]))
 
     (define interactions-panel
       (new interaction-panel%
            [parent main-panel]
            [initial-nttz nttz]
            [main-thread-runner run-sync-on-main-thread]
-           [new-nttz-callback (λ (nttz) (set-new-nttz nttz 'interaction-panel))]))
+           [new-nttz-callback (λ (nttz reason) (set-new-nttz nttz reason))]))
     
     (send frame show #t)
     (send tree-panel select-focus)
@@ -542,6 +567,7 @@
           [(list 'run-on-main-thread thunk) (channel-put ch-resp (thunk))
                                             (loop)] ; Some operations need to be run on the main thread or else cur throws an error
           [(list 'done tz) tz])))
+    (send interactions-panel print-tactics)
     
     (send frame show #f)
     new-nttz))
