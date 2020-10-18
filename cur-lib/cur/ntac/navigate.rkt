@@ -1,13 +1,14 @@
 #lang cur/metantac
 
-(require (for-syntax racket/base))
+(require (for-syntax racket/base racket/string))
 
 (begin-for-syntax
   (provide
-    (struct-out path-down-context)
-    (struct-out path-down-apply)
-    (struct-out path-down-done)
-    navigate)
+   (struct-out path-down-context)
+   (struct-out path-down-apply)
+   (struct-out path-down-done)
+   path->navigate-str
+   navigate)
 
   (struct path-down-context [] #:transparent)
   (struct path-down-apply [n] #:transparent)
@@ -28,5 +29,17 @@
              (match-define top-ntt (to-top ptz))
              (for/fold ([tz top-ntt])
                        ([step (list path-step ...)])
-               (navigate-step step tz))))])))
+               (navigate-step step tz))))]))
+
+  (define (step-to-str step)
+    (match step
+      [(path-down-context) "(path-down-context)"]
+      [(path-down-apply n) (string-append "(path-down-apply " (number->string n) ")")]
+      [(path-down-done) "(path-down-done)"]))
+
+  (define (path->navigate-str path)
+    (string-join (map step-to-str path)
+                 " "
+                 #:before-first "(navigate "
+                 #:after-last ")")))
 

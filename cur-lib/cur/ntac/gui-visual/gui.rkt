@@ -3,7 +3,7 @@
 (provide ntt-ext->hierarchical-list es test-frame)
 
 (require
-  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt"))
+  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt" "../navigate.rkt"))
 
 (require racket/exn racket/match racket/gui mrlib/hierlist racket/class "../ctx.rkt")
 
@@ -487,7 +487,7 @@
     (define/public (set-nttz new-nttz reason)  
       (match reason
         [(list 'hole-selected path)
-         (define path-str "TODO Path tactic->string")
+         (define path-str (path->navigate-str path))
          (set! undo-buffer (match undo-buffer
                              [(cons (interaction-history before-prev _ _ #t) r)
                               (cons (interaction-history before-prev new-nttz path-str #t) r)]
@@ -520,6 +520,8 @@
         (new-nttz-callback new-nttz 'redo)))
 
     (define/public (print-tactics)
+      (when (ormap interaction-history-is-change-focus undo-buffer)
+        (displayln "NOTE: You may need to add (require cur/ntac/navigate) when using the below tactics."))
       (displayln "---Tactics from interaction:---")
       (for ([history (reverse undo-buffer)])
         (displayln (interaction-history-tactic-str history)))
