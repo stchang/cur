@@ -26,7 +26,7 @@
       [(_ path-step ...)
        #`(λ (ptz)
            (parameterize [(current-tracing? #t)]
-             (match-define top-ntt (to-top ptz))
+             (define top-ntt (to-top ptz))
              (for/fold ([tz top-ntt])
                        ([step (list path-step ...)])
                (navigate-step step tz))))]))
