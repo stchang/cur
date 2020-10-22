@@ -466,23 +466,54 @@
                            (set! redo-buffer '())
                            (new-nttz-callback next-nttz 'interaction-panel))))]))
 
+    (define (handle-undo-redo-press the-list the-buffer the-func reverse?)
+      (define selections (send the-list get-selections))
+      (when (cons? selections)
+        (define sel-num (first selections))
+        (define dist-from-end (if reverse? (- (length the-buffer) sel-num) (add1 sel-num)))
+        (the-func dist-from-end)))
+    
+    (define undo-list
+      (new list-box%
+           [parent this]
+           [label #f]
+           [choices '()]))
+           
     (define undo-button
       (new button%
            [parent this]
            [label "Undo"]
            [enabled #f]
-           [callback (λ (b e) (undo 1))]))
+           [callback (λ (b e) (handle-undo-redo-press undo-list undo-buffer (λ (n) (undo n)) #t))])) ; Since undo is not a real function, need to wrap in lambda
+
+    (define redo-list
+      (new list-box%
+           [parent this]
+           [label #f]
+           [choices '()]))
 
     (define redo-button
       (new button%
            [parent this]
            [label "Redo"]
            [enabled #f]
-           [callback (λ (b e) (redo 1))]))
+           [callback (λ (b e) (handle-undo-redo-press redo-list redo-buffer (λ (n) (redo n)) #f))]))
+
+    (define (update-undo-or-redo the-button the-list the-buffer reverse?)
+      (define labels (map (λ (elem)
+                            (trunc-label (interaction-history-tactic-str elem)))
+                          the-buffer))
+      (send the-list set (if reverse? (reverse labels) labels))
+      (define buf-len (length the-buffer))
+      (send the-button enable (> buf-len 0))
+      (when (> buf-len 0)
+        (define to-select (if reverse? (sub1 buf-len) 0))
+        (send the-list set-first-visible-item to-select)
+        (send the-list select to-select #t)))
     
     (define (update-undo-redo-buttons)
-      (send undo-button enable (cons? undo-buffer))
-      (send redo-button enable (cons? redo-buffer)))
+      (update-undo-or-redo undo-button undo-list undo-buffer #t)
+      (update-undo-or-redo redo-button redo-list redo-buffer #f))
 
     (define/public (set-nttz new-nttz reason)  
       (match reason
