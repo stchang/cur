@@ -1,11 +1,12 @@
 #lang racket/base
 
-(provide ntt-ext->hierarchical-list es test-frame)
+(provide ntt-ext->hierarchical-list es test-frame
+         (struct-out interaction-history))
 
 (require
   (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt" "../navigate.rkt"))
 
-(require racket/exn racket/match racket/gui mrlib/hierlist racket/class "../ctx.rkt")
+(require racket/exn racket/match racket/gui mrlib/hierlist racket/class "./interaction-history.rkt" "../ctx.rkt")
 
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
@@ -432,16 +433,13 @@
     (define/public (new-ntt-ext ntt-ext)
       (send tree-panel new-ntt-ext ntt-ext))))
 
-(struct interaction-history [before-tactic after-tactic tactic-str is-change-focus])
-; (interaction-history nttz nttz string bool) represents the state of the proof before a given interaction, the text of the tactic itself, and whether it is a simple focus change
-; Two simple focus changes in a row can be combined into one
-
 (define interaction-panel%
   (class vertical-panel%
     (init initial-nttz)
+    (init preload-interaction-history)
     (init-field main-thread-runner new-nttz-callback)
     (field (current-nttz initial-nttz)
-           (undo-buffer '())  ; List of interaction-history, first in list is most recent
+           (undo-buffer preload-interaction-history)  ; List of interaction-history, first in list is most recent
            (redo-buffer '())) ; List of interaction-history, first in list is next to redo
     
     (super-new)
@@ -556,13 +554,15 @@
       (displayln "---Tactics from interaction:---")
       (for ([history (reverse undo-buffer)])
         (displayln (interaction-history-tactic-str history)))
-      (displayln "------"))))
+      (displayln "------"))
+
+    (update-undo-redo-buttons)))
 
 (define es (make-eventspace))
 
 ; The whole channel and eventspace thing is necessary because we pause execution of the program while
 ; the window is open. The gui library is really not meant for that, so this is a workaround.
-(define (test-frame nttz)
+(define (test-frame nttz preload-interaction-history)
   (define ch (make-channel))
   (define ch-resp (make-channel))
 
@@ -630,6 +630,7 @@
       (new interaction-panel%
            [parent main-panel]
            [initial-nttz nttz]
+           [preload-interaction-history preload-interaction-history]
            [main-thread-runner run-sync-on-main-thread]
            [new-nttz-callback (λ (nttz reason) (set-new-nttz nttz reason))]))
     
