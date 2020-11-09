@@ -11,37 +11,70 @@
   cur/ntac/base
   cur/ntac/standard
   cur/ntac/rewrite
-  cur/ntac/navigate)
+  cur/ntac/navigate
+  cur/stdlib/sigma)
 
 (define test 4)
 
 #;(ntac Nat
-      ;  display-focus-tree
-       ; (fill (exact #'4))
+        ;  display-focus-tree
+        ; (fill (exact #'4))
         display-focus-tree)
 
 #;(ntac (Π (x : Type) (n : x) x)
-      display-focus-tree
-       (by-intros x n)
+        display-focus-tree
+        (by-intros x n)
        
-       ; (fill (exact #'n))
+        ; (fill (exact #'n))
         ;(by-assumption)
         )
 
-(ntac/visual (Π (x : Type) (y : Type)
-         (-> (Π (p : Type) (Or p (-> p False)))
-             (-> (-> (-> x y) y) (-> (-> y x) x))))
-      (by-intros x y ex-mid xyy yx)
-      (by-destruct (ex-mid x) #:as [(xval) (notxval)])
+#;(ntac/visual (Π (x : Type) (y : Type)
+                  (-> (Π (p : Type) (Or p (-> p False)))
+                      (-> (-> (-> x y) y) (-> (-> y x) x))))
+               (by-intros x y ex-mid xyy yx)
+               (by-destruct (ex-mid x) #:as [(xval) (notxval)])
      
-      ; display-focus-tree
-      (fill (exact #'xval))
-      (by-apply yx)
+               ; display-focus-tree
+               (fill (exact #'xval))
+               (by-apply yx)
       
-      (by-apply xyy)
-      (by-intros xval)
+               (by-apply xyy)
+               (by-intros xval)
       
-      (by-destruct (notxval xval))
+               (by-destruct (notxval xval))
       
-      ;display-focus
-      )
+               ;display-focus
+               )
+
+; Little typer proofs
+(define/rec/match double : Nat -> Nat
+  [z => z]
+  [(s x) => (s (s (double x)))])
+
+(define (twice (n : Nat))
+  (plus n n))
+
+(define add1+=+add1
+  (ntac (Π (n : Nat)
+           (j : Nat)
+           (== Nat
+               (s (plus n j))
+               (plus n (s j))))
+        (by-intros n j)
+        (by-induction n)
+        reflexivity
+        (by-apply f-equal #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
+        by-assumption))
+
+(define twice=double
+  (ntac/visual (Π (n : Nat)
+                  (== Nat (twice n)
+                      (double n)))
+               (by-intros n)
+               (by-induction n)
+               reflexivity
+               (by-apply f-equal #:with Nat Nat s (plus X1 (s X1)) (s (double X1)))
+               (by-rewriteL IH12)
+               by-symmetry
+               (by-apply add1+=+add1)))
