@@ -10,8 +10,9 @@
 
 (define ntt-hierlist-common-item<%> (interface (hierarchical-list-item<%>)
                                       (set-text (->m string? void?)) ; If current node is focused, adds (Focused) to beginning
-                                      (set-background-color (->m (or/c string? (is-a?/c color%)) void?))
-                                      (get-ntt-ext-here (->m ntt-ext?)))) ; Call this before setting text
+                                      (set-background-color (->m (or/c string? (is-a?/c color%)) void?))  ; Call this before setting text
+                                      (get-ntt-ext-here (->m ntt-ext?))
+                                      (append-text (->m string? void?))))
                                       
 (define ntt-hierlist-item<%> (interface (ntt-hierlist-common-item<%>)                            
                                (open-on-path-to-focus (->m void?)) ; If this node is on the path to the focus, open it, otherwise close it. Returns whether node is on path.
@@ -19,8 +20,21 @@
                                (initialize (->m void?))
                                (select-focus (->m void?))))
 
-#;(define ntt-hierlist-compound-item<%> (interface (ntt-hierlist-item<%> hierarchical-list-compound-item<%>)
-                                          (add-child-ntt (->m ntt? (is-a?/c ntt-hierlist-item<%>)))))
+; String [String -> (void)] [String -> (void)] -> (void)
+; Somewhat of a hack to color subterms differently
+(define (split-on-subterm-text text on-not-match on-match)
+  (define re "\\(Subterm [0-9]+\\)")
+  (define matches (regexp-match* re text))
+  (match-define (cons before-first-match after-first-matches) (regexp-split re text))
+  (on-not-match before-first-match)
+  (for ([match matches] [after-match after-first-matches])
+    (on-match match)
+    (on-not-match after-match)))
+
+(define (make-bg-color-style-delta color)
+  (define delta (make-object style-delta% 'change-nothing))
+  (send delta set-delta-background color)
+  delta)
 
 ; Many thanks to https://docs.racket-lang.org/mrlib/Hierarchical_List_Control.html for the sample code
 (define (ntt-common-mixin ntt-ex)
@@ -36,12 +50,14 @@
       (define focus-str (if (ntt-ext-is-focus? ntt-ex) (string-append "(Focused) " str) str))
       (send t insert focus-str))
 
+    (define/public (append-text str)
+      (define t (get-editor))
+      (send t insert str))
+
     ; Must be called before setting the text, acts like the text background function in word
     (define/public (set-background-color color)
-      (define delta (make-object style-delta% 'change-nothing))
-      (send delta set-delta-background color)
       (define editor (get-editor))
-      (send editor change-style delta))
+      (send editor change-style (make-bg-color-style-delta color)))
 
     (define/public (get-ntt-ext-here)
       ntt-ex)))
@@ -165,20 +181,28 @@
      (define new-ctx-items (ctx-difference child-ctxt this-ctxt))
      (define/override (initialize)
        (super initialize)
+       (set-background-color "LightCyan")
        (set-text (string-append "Context: " (ctx->str new-ctx-items))))) ; TODO What context?
    (ntt-common-node-mixin ntt-ext)))
 
 (define (ntt-apply-mixin ntt-ext)
   (compose
    (mixin (ntt-hierlist-item<%>) (ntt-list-item<%>)
-     (inherit set-text set-background-color)
+     (inherit set-text set-background-color append-text)
      (super-new)
      (match-define (ntt-ext-node is-focus? on-path-to-focus? path-to-here this-nttz subtrees) ntt-ext)
      (match-define (nttz _ ntt _) this-nttz)
-     (match-define (ntt-apply _ _ _ _) ntt)
+     (match-define (ntt-apply _ _ subterms tactic) ntt)
      (define/override (initialize)
        (super initialize)
-       (set-text "Apply")))
+       (set-text "")
+       (split-on-subterm-text (apply->str subterms tactic)
+                              (λ (not-match)
+                                (set-background-color "White")
+                                (append-text not-match))
+                              (λ (match)
+                                (set-background-color "WhiteSmoke")
+                                (append-text match)))))
    (ntt-common-node-mixin ntt-ext)))
 
 ; Add a ntt to a hierarchical list. Parent-item is a hierarchical-list% or hierarchical-list-compound-item<%>
@@ -230,6 +254,7 @@
     (inherit set-editor)
     
     (init label)
+    (init [highlight-subterms? #f]) 
     (super-new)
 
     ; pretty-format doesn't work on strings (or rather, it just puts it in one line)
@@ -244,16 +269,21 @@
 
                  ; Insert once and nevermore
                  (define/augment (can-insert? s l)
-                   (if is-initial-insert?
-                       (begin
-                         (set! is-initial-insert? #f)
-                         #t)
-                       #f))
+                   is-initial-insert?)
                  (define/augment (can-delete? s l) #f)
 
                  ; Monospace
                  (send this change-style (make-object style-delta% 'change-family 'modern))
-                 (send this insert label-val))))
+                 (if highlight-subterms?
+                     (split-on-subterm-text label-val
+                                            (λ (not-match)
+                                              (send this change-style (make-bg-color-style-delta "White"))
+                                              (send this insert not-match))
+                                            (λ (match)
+                                              (send this change-style (make-bg-color-style-delta "WhiteSmoke"))
+                                              (send this insert match)))
+                     (send this insert label-val))
+                 (set! is-initial-insert? #f))))
 
     (set-editor t)))
     
@@ -299,7 +329,9 @@
   (define apply-result-box (new group-box-panel%
                                 [parent apply-box]
                                 [label "Result"]))
-  (new pretty-message% [parent apply-result-box] [label (apply->str subterms tactic)]))
+  (new pretty-message% [parent apply-result-box]
+       [label (apply->str subterms tactic)]
+       [highlight-subterms? #t]))
 
 (define (make-hole-box parent ntt-ext new-ntt-ext-callback)
   (define hole-box (new group-box-panel%
