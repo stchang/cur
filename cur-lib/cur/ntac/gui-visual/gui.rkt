@@ -615,7 +615,7 @@
   (define frame (void))
     
   (parameterize ([current-eventspace es])
-    (set! frame (new ((test-frame-mixin ch nttz) frame%) [label "Lorem Ipsum"] [width 800] [height 600]))
+    (set! frame (new ((test-frame-mixin ch nttz) frame%) [label "GUI Proof Explorer"] [width 800] [height 600]))
     (define main-panel (new horizontal-panel% [parent frame]))
 
     ; Updates the node that the user is focusing on, without modifying the underlying tree
