@@ -10,10 +10,7 @@ Cur proof assistant, implemented with Turnstile+ framework.
   - To check install (run tests): `make test` (from repo root)
   - To remove Cur: `make remove` (from repo root)
 
-this branch: `popl2020-artifact`
+this branch: `visual-explorer`
 =============================
-- this branch initially created from `turnstile-core` branch
-- also merged in commits from the following branches:
-  - `generic-type-methods`
-  - `metantac`
-  - `turnstile-core+rosette`
+- this branch initially created from `popl2020-artifact` branch
+- adds functionality for a visual proof explorer
