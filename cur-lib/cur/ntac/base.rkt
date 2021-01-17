@@ -76,6 +76,32 @@
       (error 'ntt-done "Cannot construct done if hole present: ~v" subtree))
     (_ntt-done #f (ntt-goal subtree) subtree))
 
+  ;; Add the ability to tag ntts with extra data
+  (struct ntt-hole-tag ntt-hole [tag] #:transparent #:constructor-name _ntt-hole-tag)
+  (define (make-ntt-hole-tag hole tag)
+    (match-define (ntt-hole contains-hole? goal) hole)
+    (_ntt-hole-tag contains-hole? goal tag))
+
+  (struct ntt-exact-tag ntt-exact [tag] #:transparent #:constructor-name _ntt-exact-tag)
+  (define (make-ntt-exact-tag hole tag)
+    (match-define (ntt-exact contains-hole? goal term) hole)
+    (_ntt-exact-tag contains-hole? goal term tag))
+  
+  (struct ntt-context-tag ntt-context [tag] #:transparent #:constructor-name _ntt-context-tag)
+  (define (make-ntt-context-tag hole tag)
+    (match-define (ntt-context contains-hole? goal env-transformer subtree) hole)
+    (_ntt-context-tag contains-hole? goal env-transformer subtree tag))
+  
+  (struct ntt-apply-tag ntt-apply [tag] #:transparent #:constructor-name _ntt-apply-tag)
+  (define (make-ntt-apply-tag hole tag)
+    (match-define (ntt-apply contains-hole? goal subterms tactic) hole)
+    (_ntt-apply-tag contains-hole? goal subterms tactic tag))
+
+  (struct ntt-done-tag ntt-done [tag] #:transparent #:constructor-name _ntt-done-tag)
+  (define (make-ntt-done-tag hole tag)
+    (match-define (ntt-done contains-hole? goal subtree) hole)
+    (_ntt-done-tag contains-hole? goal subtree tag))
+
   (define (new-proof-tree goal)
     (make-ntt-hole goal))
 
