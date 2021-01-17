@@ -102,6 +102,35 @@
     (match-define (ntt-done contains-hole? goal subtree) hole)
     (_ntt-done-tag contains-hole? goal subtree tag))
 
+  (define (is-tagged-ntt? ntt)
+    (or (ntt-hole-tag? ntt)
+        (ntt-exact-tag? ntt)
+        (ntt-context-tag? ntt)
+        (ntt-apply-tag? ntt)
+        (ntt-done-tag? ntt)))
+
+  (define (set-tag ntt tag)
+    (match ntt
+      [(ntt-hole _ _) (make-ntt-hole-tag ntt tag)]
+      [(ntt-exact _ _ _) (make-ntt-exact-tag ntt tag)]
+      [(ntt-context _ _ _ _) (make-ntt-context-tag ntt tag)]
+      [(ntt-apply _ _ _ _) (make-ntt-apply-tag ntt tag)]
+      [(ntt-done _ _ _) (make-ntt-done-tag ntt tag)]))
+
+  ;; Assumes ntt is a tagged ntt, fails otherwise
+  (define (get-tag ntt tag)
+    (match ntt
+      [(ntt-hole-tag _ _ tag) tag]
+      [(ntt-exact-tag _ _ _ tag) tag]
+      [(ntt-context-tag _ _ _ _ tag) tag]
+      [(ntt-apply-tag _ _ _ _ tag) tag]
+      [(ntt-done-tag _ _ _ tag) tag]))
+
+  (define (copy-tag-if-present source dest)
+    (if (is-tagged-ntt? source)
+        (set-tag dest (get-tag source))
+        dest))
+
   (define (new-proof-tree goal)
     (make-ntt-hole goal))
 
@@ -152,12 +181,12 @@
   (define (nttz-down-done tz)
     (match-define (nttz context foc up) tz)
     (match-define (ntt-done _ _ k) foc)
-    (_nttz context k (λ (new-k) (_nttz context (make-ntt-done new-k) up))))
+    (_nttz context k (λ (new-k) (_nttz context (copy-tag-if-present foc (make-ntt-done new-k)) up))))
 
   (define (nttz-down-context tz)
     (match-define (nttz context foc up) tz)
     (match-define (ntt-context _ _ gf k) foc)
-    (_nttz (gf context) k (λ (new-k) (_nttz context (make-ntt-context gf new-k) up))))
+    (_nttz (gf context) k (λ (new-k) (_nttz context (copy-tag-if-present foc (make-ntt-context gf new-k)) up))))
 
   (define (nttz-down-apply tz i)
     (match-define (nttz context foc up) tz)
@@ -165,7 +194,7 @@
     (define-values (before i+after) (split-at cs i))
     (match-define (cons c_i after) i+after)
     (_nttz context c_i
-           (λ (new-i) (_nttz context (make-ntt-apply a (append before (cons new-i after)) f) up))))
+           (λ (new-i) (_nttz context (copy-tag-if-present foc (make-ntt-apply a (append before (cons new-i after)) f)) up))))
 
   (define (nttz-done? tz)
     (ntt-done? (nttz-focus tz)))
