@@ -33,6 +33,21 @@
    make-ntt-apply
    (struct-out ntt-done)
    make-ntt-done
+   
+   (struct-out ntt-hole-tag)
+   make-ntt-hole-tag
+   (struct-out ntt-exact-tag)
+   make-ntt-exact-tag
+   (struct-out ntt-context-tag)
+   make-ntt-context-tag
+   (struct-out ntt-apply-tag)
+   make-ntt-apply-tag
+   (struct-out ntt-done-tag)
+   make-ntt-done-tag
+   is-tagged-ntt?
+   ntt-get-tag
+   ntt-set-tag
+   ntt-copy-tag-if-present
 
    ;; proof tree zipper
    (struct-out nttz)
@@ -102,6 +117,7 @@
     (match-define (ntt-done contains-hole? goal subtree) hole)
     (_ntt-done-tag contains-hole? goal subtree tag))
 
+  ; Needs to be in this file to avoid circular reference with nttz-down functions
   (define (is-tagged-ntt? ntt)
     (or (ntt-hole-tag? ntt)
         (ntt-exact-tag? ntt)
@@ -109,7 +125,7 @@
         (ntt-apply-tag? ntt)
         (ntt-done-tag? ntt)))
 
-  (define (set-tag ntt tag)
+  (define (ntt-set-tag ntt tag)
     (match ntt
       [(ntt-hole _ _) (make-ntt-hole-tag ntt tag)]
       [(ntt-exact _ _ _) (make-ntt-exact-tag ntt tag)]
@@ -118,7 +134,7 @@
       [(ntt-done _ _ _) (make-ntt-done-tag ntt tag)]))
 
   ;; Assumes ntt is a tagged ntt, fails otherwise
-  (define (get-tag ntt tag)
+  (define (ntt-get-tag ntt)
     (match ntt
       [(ntt-hole-tag _ _ tag) tag]
       [(ntt-exact-tag _ _ _ tag) tag]
@@ -126,9 +142,9 @@
       [(ntt-apply-tag _ _ _ _ tag) tag]
       [(ntt-done-tag _ _ _ tag) tag]))
 
-  (define (copy-tag-if-present source dest)
+  (define (ntt-copy-tag-if-present source dest)
     (if (is-tagged-ntt? source)
-        (set-tag dest (get-tag source))
+        (ntt-set-tag dest (ntt-get-tag source))
         dest))
 
   (define (new-proof-tree goal)
@@ -181,12 +197,12 @@
   (define (nttz-down-done tz)
     (match-define (nttz context foc up) tz)
     (match-define (ntt-done _ _ k) foc)
-    (_nttz context k (λ (new-k) (_nttz context (copy-tag-if-present foc (make-ntt-done new-k)) up))))
+    (_nttz context k (λ (new-k) (_nttz context (ntt-copy-tag-if-present foc (make-ntt-done new-k)) up))))
 
   (define (nttz-down-context tz)
     (match-define (nttz context foc up) tz)
     (match-define (ntt-context _ _ gf k) foc)
-    (_nttz (gf context) k (λ (new-k) (_nttz context (copy-tag-if-present foc (make-ntt-context gf new-k)) up))))
+    (_nttz (gf context) k (λ (new-k) (_nttz context (ntt-copy-tag-if-present foc (make-ntt-context gf new-k)) up))))
 
   (define (nttz-down-apply tz i)
     (match-define (nttz context foc up) tz)
@@ -194,7 +210,7 @@
     (define-values (before i+after) (split-at cs i))
     (match-define (cons c_i after) i+after)
     (_nttz context c_i
-           (λ (new-i) (_nttz context (copy-tag-if-present foc (make-ntt-apply a (append before (cons new-i after)) f)) up))))
+           (λ (new-i) (_nttz context (ntt-copy-tag-if-present foc (make-ntt-apply a (append before (cons new-i after)) f)) up))))
 
   (define (nttz-done? tz)
     (ntt-done? (nttz-focus tz)))

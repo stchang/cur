@@ -3,7 +3,8 @@
 
 (require 
   (for-syntax racket/base racket/port "./gui-visual/interaction-history.rkt")
-  "./gui-visual/stx-str.rkt")
+  "./gui-visual/stx-str.rkt"
+  "./gui-visual/ntt-tag.rkt")
 
 (provide
  (for-syntax display-focus-tree )
@@ -44,10 +45,10 @@
     (qed (eval-proof-steps (make-nttz pt ctxt) psteps) err-stx))
 
   (define (eval-proof-steps/interaction-history ptz psteps)
-    (for/fold ([nttz ptz]
+    (for/fold ([nttz (tag-untagged-nttz-with ptz "Initial")] ; TOOD Tag with something better than just the string
                [interaction-hist '()])
               ([pstep-stx (in-stx-list psteps)])
       (define pstep-str (stx->str pstep-stx)) ; Intentionally break some scoping rules by converting to string.
       (define pstep-back-again (eval (with-input-from-string pstep-str read-syntax))) ; There has to be a better way.
-      (define next-step (pstep-back-again nttz))
+      (define next-step (tag-untagged-nttz-with (pstep-back-again nttz) pstep-str))
       (values next-step (cons (interaction-history nttz next-step pstep-str #f) interaction-hist)))))

@@ -4,7 +4,7 @@
          (struct-out interaction-history))
 
 (require
-  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt" "../navigate.rkt"))
+  (for-template "../base.rkt" "./stx-str.rkt" "./ntt-focus.rkt" "../standard.rkt" "../navigate.rkt" "./ntt-tag.rkt"))
 
 (require racket/exn racket/match racket/gui mrlib/hierlist racket/class "./interaction-history.rkt" "../ctx.rkt")
 
@@ -378,6 +378,12 @@
                                      (parent panel)
                                      (label "Complete Proof Term")))
     (new pretty-message% (parent complete-term-panel) (label (stx->str complete-proof-term))))
+
+  (when (is-tagged-ntt? focus)
+    (define tag-panel (new group-box-panel%
+                           (parent panel)
+                           (label "Tag")))
+    (new pretty-message% (parent tag-panel) (label (ntt-get-tag focus))))
  
   panel)
 

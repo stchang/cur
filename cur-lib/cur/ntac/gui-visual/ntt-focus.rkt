@@ -12,6 +12,7 @@
    (struct-out ntt-ext-leaf)
    (struct-out ntt-ext-node)
    ntt-ext-find-focus
+   ntt-ext->navigate-focus-path
    )
 
   ; is-focus?: bool, is the current node _the_ focus
@@ -72,4 +73,9 @@
         (or (and (ntt-ext-is-focus? nex) nex)
             (and (ntt-ext-node? nex)
                  (ormap ntt-ext-find-focus (ntt-ext-node-subtrees nex))))
-        #f)))
+        #f))
+
+  ; ntt-ext -> [Maybe navigation-instructions]
+  (define (ntt-ext->navigate-focus-path nex)
+    (define focused-nex (ntt-ext-find-focus nex))
+    (if focused-nex (ntt-ext-path-to-here focused-nex) #f)))
