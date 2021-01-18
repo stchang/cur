@@ -45,10 +45,10 @@
     (qed (eval-proof-steps (make-nttz pt ctxt) psteps) err-stx))
 
   (define (eval-proof-steps/interaction-history ptz psteps)
-    (for/fold ([nttz (tag-untagged-nttz-with ptz "Initial")] ; TOOD Tag with something better than just the string
+    (for/fold ([nttz (tag-untagged-nttz-with ptz -1)] ; -1 as a tag represents that it was passed into the tactic, this might cause issues if the tactic is used multiple times 
                [interaction-hist '()])
               ([pstep-stx (in-stx-list psteps)])
       (define pstep-str (stx->str pstep-stx)) ; Intentionally break some scoping rules by converting to string.
       (define pstep-back-again (eval (with-input-from-string pstep-str read-syntax))) ; There has to be a better way.
-      (define next-step (tag-untagged-nttz-with (pstep-back-again nttz) pstep-str))
+      (define next-step (tag-untagged-nttz-with (pstep-back-again nttz) (length interaction-hist))) ; First tactic gives index of 0
       (values next-step (cons (interaction-history nttz next-step pstep-str #f) interaction-hist)))))
