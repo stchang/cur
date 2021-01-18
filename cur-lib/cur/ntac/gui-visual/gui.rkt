@@ -496,7 +496,8 @@
                            (main-thread-runner
                             (λ ()
                               (with-handlers ([exn:fail? (λ (e) (displayln (exn->string e)) current-nttz)])
-                                ((eval (with-input-from-string entered-text read-syntax)) current-nttz)))))
+                                (define nttz-untagged ((eval (with-input-from-string entered-text read-syntax)) current-nttz))
+                                (tag-untagged-nttz-with nttz-untagged entered-text))))) ; TODO Tag with something better than just the text
                          (unless (eq? current-nttz next-nttz)
                            (set! undo-buffer (cons (interaction-history current-nttz next-nttz entered-text #f) undo-buffer))
                            (set! redo-buffer '())
@@ -636,7 +637,7 @@
     ; - 'redo
     (define (set-new-nttz new-nttz reason)
       (run-sync-on-main-thread
-       (λ ()       
+       (λ ()
          (define top-ntt-ext (nttz->ntt-ext new-nttz))
       
          (send frame set-nttz new-nttz)
