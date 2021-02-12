@@ -17,7 +17,7 @@
 (begin-for-syntax
 
   (define (display-focus-tree current-nttz)
-    (display-focus-tree/interaction-history current-nttz '(list)))
+    (display-focus-tree/interaction-history current-nttz '()))
   
   (define (display-focus-tree/interaction-history current-nttz history)
     (with-handlers ([exn:fail?
