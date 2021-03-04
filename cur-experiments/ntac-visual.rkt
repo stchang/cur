@@ -12,7 +12,8 @@
   cur/ntac/standard
   cur/ntac/rewrite
   cur/ntac/navigate
-  cur/stdlib/sigma)
+  cur/stdlib/sigma
+  cur/ntac/f-equal)
 
 (define test 4)
 
@@ -21,13 +22,16 @@
         ; (fill (exact #'4))
         display-focus-tree)
 
-#;(ntac (Π (x : Type) (n : x) x)
-        display-focus-tree
-        (by-intros x n)
+#;(ntac/visual (Π (x : Type) (n : x) x)
+        ;display-focus-tree
+        ;(by-intros x n)
        
         ; (fill (exact #'n))
         ;(by-assumption)
         )
+
+#;(ntac/visual (Π (x : Nat)
+                (== x x)))
 
 #;(ntac/visual (Π (x : Type) (y : Type)
                   (-> (Π (p : Type) (Or p (-> p False)))
@@ -47,6 +51,15 @@
                ;display-focus
                )
 
+#;(ntac/visual (-> False (== Nat (s 0) 0)))
+
+#;(define-theorem two-neq-four
+ (-> (== Nat (s 0) 0)
+     (== Nat (s (s 0)) (s (s (s 0)))))
+  (by-intro H)
+  (by-inversion H)
+  display-focus-tree)
+
 ; Little typer proofs
 (define/rec/match double : Nat -> Nat
   [z => z]
@@ -56,7 +69,7 @@
   (plus n n))
 
 (define add1+=+add1
-  (ntac (Π (n : Nat)
+  (ntac/visual (Π (n : Nat)
            (j : Nat)
            (== Nat
                (s (plus n j))
@@ -64,10 +77,11 @@
         (by-intros n j)
         (by-induction n)
         reflexivity
-        (by-apply f-equal #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
+        ;(by-apply f-equal #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
+        f-equal-tac
         by-assumption))
 
-(define twice=double
+#;(define twice=double
   (ntac/visual (Π (n : Nat)
                   (== Nat (twice n)
                       (double n)))
