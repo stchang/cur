@@ -50,7 +50,20 @@
          (define subgoals
            (for/list ([x-expr the-xs]
                       [y-expr the-ys])
-             (make-ntt-hole #`(== #,(resugar-type (typeof x-expr)) #,x-expr #,y-expr))))
+             (displayln "x-expr:")
+             (displayln x-expr)
+             (displayln "type of x-expr")
+             (displayln (typeof x-expr))
+             (displayln "xexpr keys")
+             (displayln (syntax-property-symbol-keys x-expr))
+             (define normxexpr (normalize x-expr $ctxt))
+             (displayln "normalized x-expr")
+             (displayln normxexpr)
+             (displayln "type normalized x-expr")
+             (displayln (typeof normxexpr))
+             (displayln "xexpr normalized keys")
+             (displayln (syntax-property-symbol-keys normxexpr))
+             (make-ntt-hole #`(== #,(typeof x-expr) #,x-expr #,y-expr))))
          (displayln "subgoals:")
          (displayln subgoals)
          ; TODO solve some subgoals automatically
