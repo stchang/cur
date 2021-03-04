@@ -30,11 +30,16 @@
 
          (define the-xs-no-app
            (syntax-parse x-norm
-             [((~literal #%plain-app) the-xs-no-app ...) #'(the-xs-no-app ...)]))
+             [((~literal #%plain-app) txna (... ...))
+              #'(txna (... ...))]))
+         (define the-ys-no-app
+           (syntax-parse y-norm
+             [((~literal #%plain-app) tyna (... ...))
+              #'(tyna (... ...))]))
 
          (displayln the-xs-no-app)
          (define the-xs (syntax->list the-xs-no-app))
-         (define the-ys (syntax->list y-norm))
+         (define the-ys (syntax->list the-ys-no-app))
          ;(define the-xs x-norm)
          ;(define the-ys y-norm)
          (displayln "the-x/ys:")
