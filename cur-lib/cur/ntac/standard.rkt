@@ -552,7 +552,7 @@
                                ctxt-to-change)))
                 (define new-goal (normalize (update-ty goal) new-ctxt))] ; new specialized subgoal
            ($stx/holes
-            goal
+            new-goal
             (λ #,@new-xs+IH
               (λ #,@(ctx->stx ctxt-to-change #:do (compose unexpand update-ty))
                 #,pf))
