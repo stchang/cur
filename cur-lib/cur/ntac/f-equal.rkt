@@ -7,8 +7,20 @@
 (begin-for-syntax
 
   (provide f-equal-tac)
-  
-  (define-tactic f-equal-tac
+
+  (define-syntax (f-equal-tac syn)
+    (syntax-case syn ()
+      [(_ #:with X Y f x y) #'(fill (f-equal-fn #'X #'Y #'f #'x #'y))]))
+
+  (define ((f-equal-fn X Y f x y) ctxt pt)
+    (match-define (ntt-hole _ goal) pt)
+    (make-ntt-apply
+     goal
+     (list (make-ntt-hole #`(== #,X #,x #,y)))
+     (λ (pf)
+       #`(f-equal #,X #,Y #,f #,x #,y #,pf))))
+
+ #; (define-tactic f-equal-tac
     ; (match-define (ntt-hole _ goal) pt)
     [_
      (ntac-match
