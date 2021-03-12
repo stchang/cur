@@ -21,6 +21,7 @@
         (by-induction n)
         reflexivity
 ;        (by-apply f-equal #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
-        (f-equal-tac #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
+;        (f-equal-tac #:with Nat Nat s (s (plus X1 j)) (plus X1 (s j)))
+        (f-equal-tac #:with s)
        ; f-equal-tac
         by-assumption))
