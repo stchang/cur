@@ -83,7 +83,14 @@
      #:with (p ...) (generate-temporaries #'(A ... i+x ...))
      (syntax/loc this-syntax
        (begin-
-         (define-type name/internal : [A : τA] ... [i+x : τ] ... -> τ-out . rst)
+         (define-type name/internal : [A : τA] ... [i+x : τ] ... -> τ-out
+           #:implements
+           get-unexpand-info
+           ;; want to unexpand to #'name and not #'name/internal
+           (syntax-parser ; unexpand fn
+             [(_ _) #'name]
+             [(_ _ . args) (cons #'name (stx-map unexpand #'args))])
+           . rst)
 
          (define-syntax name
            (mk-cons+pat-transformer
