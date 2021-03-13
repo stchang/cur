@@ -550,9 +550,17 @@
                               (ctx-map
                                (compose (normalize/ctxt tmp-ctxt) update-ty)
                                ctxt-to-change)))
-                (define new-goal (normalize (update-ty goal) new-ctxt))] ; new specialized subgoal
+                  (define new-goal (normalize (update-ty goal) new-ctxt)) ; new specialized subgoal (inside each method body)
+                  (define meth-ty ; type of the method itself
+                    (if (null? (stx->list new-xs+IH))
+                        new-goal
+                        #`(Π #,@(stx-map
+                                 (λ (x τ) #`[#,x : #,τ])
+                                 new-xs+IH
+                                 #'(τ ... . IHτs))
+                             #,new-goal)))]
            ($stx/holes
-            new-goal
+            meth-ty
             (λ #,@new-xs+IH
               (λ #,@(ctx->stx ctxt-to-change #:do (compose unexpand update-ty))
                 #,pf))
